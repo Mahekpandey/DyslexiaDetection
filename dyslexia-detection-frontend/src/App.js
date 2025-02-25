@@ -7,32 +7,82 @@ import {
   Paper,
   CircularProgress,
   Alert,
+  Zoom,
+  Fade,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { styled, keyframes } from '@mui/material/styles';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import EmojiPeopleIcon from '@mui/icons-material/EmojiPeople';
+
+const float = keyframes`
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+`;
+
+const bounce = keyframes`
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-20px); }
+  60% { transform: translateY(-10px); }
+`;
+
+const StyledContainer = styled(Container)(({ theme }) => ({
+  '& .MuiTypography-h3': {
+    marginBottom: theme.spacing(4),
+    textAlign: 'center',
+    animation: `${float} 3s ease-in-out infinite`,
+  },
+}));
 
 const DropzoneArea = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(4),
+  padding: theme.spacing(6),
   textAlign: 'center',
   cursor: 'pointer',
-  border: '2px dashed #ccc',
-  borderRadius: theme.spacing(2),
-  backgroundColor: theme.palette.grey[50],
+  border: `3px dashed ${theme.palette.primary.main}`,
+  borderRadius: theme.shape.borderRadius * 2,
+  backgroundColor: 'rgba(156, 39, 176, 0.1)',
+  transition: 'all 0.3s ease-in-out',
   '&:hover': {
-    borderColor: theme.palette.primary.main,
-    backgroundColor: theme.palette.primary[50],
+    borderColor: theme.palette.secondary.main,
+    backgroundColor: 'rgba(156, 39, 176, 0.2)',
+    transform: 'scale(1.02)',
+  },
+  '& .MuiSvgIcon-root': {
+    fontSize: 64,
+    marginBottom: theme.spacing(2),
+    color: theme.palette.primary.main,
+    animation: `${bounce} 2s infinite`,
   },
 }));
 
 const PreviewImage = styled('img')({
   maxWidth: '100%',
   maxHeight: '300px',
-  marginTop: '20px',
-  borderRadius: '8px',
-  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+  borderRadius: '16px',
+  boxShadow: '0 8px 32px rgba(156, 39, 176, 0.4)',
+  transition: 'transform 0.3s ease-in-out',
+  '&:hover': {
+    transform: 'scale(1.05)',
+  },
 });
 
+const ResultPaper = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(4),
+  textAlign: 'center',
+  position: 'relative',
+  overflow: 'hidden',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '4px',
+    background: 'linear-gradient(45deg, #9C27B0 30%, #E1BEE7 90%)',
+  },
+}));
+
 function App() {
-  const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -40,9 +90,10 @@ function App() {
 
   const onDrop = useCallback((acceptedFiles) => {
     const selectedFile = acceptedFiles[0];
-    setFile(selectedFile);
-    setPreview(URL.createObjectURL(selectedFile));
-    handlePrediction(selectedFile);
+    if (selectedFile) {
+      setPreview(URL.createObjectURL(selectedFile));
+      handlePrediction(selectedFile);
+    }
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -82,60 +133,77 @@ function App() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h3" component="h1" gutterBottom align="center" color="primary">
-        Dyslexia Detection
+    <StyledContainer maxWidth="md" sx={{ py: 6 }}>
+      <Typography variant="h3" component="h1">
+        Let's Check Your Handwriting!
+        <EmojiPeopleIcon sx={{ ml: 2, fontSize: 40 }} />
       </Typography>
 
-      <Box sx={{ mb: 4 }}>
-        <DropzoneArea {...getRootProps()}>
-          <input {...getInputProps()} />
-          <Box sx={{ p: 3 }}>
-            {isDragActive ? (
-              <Typography variant="h6">Drop the image here...</Typography>
-            ) : (
-              <Typography variant="h6">
-                Drag and drop a handwriting image, or click to select
+      <Zoom in={true} timeout={800}>
+        <Box sx={{ mb: 4 }}>
+          <DropzoneArea {...getRootProps()}>
+            <input {...getInputProps()} />
+            <CloudUploadIcon />
+            <Box sx={{ p: 3 }}>
+              {isDragActive ? (
+                <Typography variant="h6">Drop your magical handwriting here! ✨</Typography>
+              ) : (
+                <Typography variant="h6">
+                  Drop your handwriting here, or click to choose! 🎨
+                </Typography>
+              )}
+              <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+                We can read JPEG, JPG, and PNG - just like magic! 🪄
               </Typography>
-            )}
-            <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Supported formats: JPEG, JPG, PNG
-            </Typography>
-          </Box>
-        </DropzoneArea>
-      </Box>
+            </Box>
+          </DropzoneArea>
+        </Box>
+      </Zoom>
 
       {preview && (
-        <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
-          <Typography variant="h6" gutterBottom>Preview</Typography>
-          <PreviewImage src={preview} alt="Preview" />
-        </Paper>
+        <Fade in={true} timeout={1000}>
+          <Paper elevation={6} sx={{ p: 3, mb: 4 }}>
+            <Typography variant="h6" gutterBottom>Your Magical Writing ✨</Typography>
+            <PreviewImage src={preview} alt="Preview" />
+          </Paper>
+        </Fade>
       )}
 
       {loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-          <CircularProgress />
+          <CircularProgress size={60} thickness={5} color="secondary" />
         </Box>
       )}
 
       {error && (
-        <Alert severity="error" sx={{ mb: 4 }}>
-          {error}
-        </Alert>
+        <Fade in={true}>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mb: 4,
+              borderRadius: 4,
+              animation: `${bounce} 1s ease`
+            }}
+          >
+            Oops! {error} 🎭
+          </Alert>
+        </Fade>
       )}
 
       {prediction && (
-        <Paper elevation={3} sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Results</Typography>
-          <Typography variant="body1" paragraph>
-            Prediction: <strong>{prediction.prediction}</strong>
-          </Typography>
-          <Typography variant="body1">
-            Confidence: <strong>{prediction.confidence}</strong>
-          </Typography>
-        </Paper>
+        <Fade in={true} timeout={1000}>
+          <ResultPaper elevation={6}>
+            <Typography variant="h6" gutterBottom>The Results Are In! 🎉</Typography>
+            <Typography variant="h5" sx={{ my: 2, color: 'primary.light' }}>
+              {prediction.prediction}
+            </Typography>
+            <Typography variant="body1" sx={{ color: 'secondary.main' }}>
+              Confidence: <strong>{prediction.confidence}</strong> ⭐
+            </Typography>
+          </ResultPaper>
+        </Fade>
       )}
-    </Container>
+    </StyledContainer>
   );
 }
 
