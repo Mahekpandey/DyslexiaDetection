@@ -1,10 +1,12 @@
 from flask import Flask, request, render_template, jsonify
+from flask_cors import CORS
 import os
 from werkzeug.utils import secure_filename
 import torch
 from model import DyslexiaCNN, predict_image
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 

@@ -6,4 +6,5 @@ scikit-learn>=1.0.0
 matplotlib>=3.5.0
 pathlib>=1.0.1
 flask>=2.0.0
-werkzeug>=2.0.0 
+werkzeug>=2.0.0
+flask-cors>=3.0.0 
