@@ -1,0 +1,9 @@
+torch
+torchvision
+numpy>=1.21.0
+opencv-python>=4.5.0
+scikit-learn>=1.0.0
+matplotlib>=3.5.0
+pathlib>=1.0.1
+flask>=2.0.0
+werkzeug>=2.0.0 
