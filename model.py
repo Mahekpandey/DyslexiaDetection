@@ -45,7 +45,7 @@ class HandwritingDataset(Dataset):
         
         return image, label
 
-def load_and_preprocess_data(data_dir='data', img_size=(128, 128)):
+def load_and_preprocess_data(data_dir='DyslexiaDetection/data', img_size=(128, 128)):
     """
     Load and preprocess images from the data directory.
     Using smaller image size (128x128) for faster training.
@@ -162,87 +162,59 @@ class DyslexiaCNN(nn.Module):
         x = self.classifier(x)
         return x
 
-def train_model(model, train_loader, val_loader, device, num_epochs=200):
-    """Train the model"""
-    criterion = nn.BCELoss()
-    optimizer = optim.AdamW(
-        model.parameters(),
-        lr=0.001,
-        weight_decay=0.0001
-    )
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode='min',
-        factor=0.5,
-        patience=10,
-        min_lr=1e-6
-    )
-    
+def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs, device, patience=20):
     best_val_loss = float('inf')
-    train_losses = []
-    val_losses = []
-    train_accs = []
-    val_accs = []
-    patience = 20
-    patience_counter = 0
     best_epoch = 0
+    patience_counter = 0
+    train_losses, val_losses, train_accs, val_accs = [], [], [], []
     
     for epoch in range(num_epochs):
         # Training phase
         model.train()
-        running_loss = 0.0
-        correct = 0
-        total = 0
+        train_loss = 0
+        train_correct = 0
+        train_total = 0
         
         for images, labels in train_loader:
-            images = images.to(device)
-            labels = labels.to(device)
+            images, labels = images.to(device), labels.to(device)
             
             optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, labels)
-            
-            # Add L1 regularization
-            l1_lambda = 0.0001
-            l1_norm = sum(p.abs().sum() for p in model.parameters())
-            loss = loss + l1_lambda * l1_norm
-            
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             
-            running_loss += loss.item()
+            train_loss += loss.item()
             predicted = (outputs > 0.5).float()
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            train_total += labels.size(0)
+            train_correct += (predicted == labels).sum().item()
         
-        train_loss = running_loss / len(train_loader)
-        train_acc = correct / total
-        train_losses.append(train_loss)
-        train_accs.append(train_acc)
+        train_loss = train_loss / len(train_loader)
+        train_acc = train_correct / train_total
         
         # Validation phase
         model.eval()
-        val_loss = 0.0
-        correct = 0
-        total = 0
+        val_loss = 0
+        val_correct = 0
+        val_total = 0
         
         with torch.no_grad():
             for images, labels in val_loader:
-                images = images.to(device)
-                labels = labels.to(device)
-                
+                images, labels = images.to(device), labels.to(device)
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 
                 val_loss += loss.item()
                 predicted = (outputs > 0.5).float()
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
+                val_total += labels.size(0)
+                val_correct += (predicted == labels).sum().item()
         
         val_loss = val_loss / len(val_loader)
-        val_acc = correct / total
+        val_acc = val_correct / val_total
+        
+        train_losses.append(train_loss)
         val_losses.append(val_loss)
+        train_accs.append(train_acc)
         val_accs.append(val_acc)
         
         print(f'Epoch [{epoch+1}/{num_epochs}]')
@@ -254,13 +226,15 @@ def train_model(model, train_loader, val_loader, device, num_epochs=200):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_epoch = epoch + 1
+            # Save model with full path
+            model_path = os.path.join('DyslexiaDetection', 'models', 'best_model.pth')
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'val_loss': val_loss,
                 'val_acc': val_acc,
-            }, 'models/best_model.pth')
+            }, model_path)
             patience_counter = 0
         else:
             patience_counter += 1
@@ -347,8 +321,9 @@ def evaluate_model():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = DyslexiaCNN().to(device)
     
-    # Load the best model
-    checkpoint = torch.load('models/best_model.pth')
+    # Load the best model with full path
+    model_path = os.path.join('DyslexiaDetection', 'models', 'best_model.pth')
+    checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint['model_state_dict'])
     print(f"Loaded model from epoch {checkpoint['epoch']+1}")
     print(f"Validation accuracy: {checkpoint['val_acc']:.4f}")
@@ -362,6 +337,10 @@ def evaluate_model():
             break
         
         try:
+            # Construct full path if relative path is provided
+            if not os.path.isabs(image_path):
+                image_path = os.path.join('DyslexiaDetection', image_path)
+            
             prediction, confidence = predict_image(model, image_path, device)
             print(f"\nPrediction: {prediction}")
             print(f"Confidence: {confidence:.2%}")
@@ -378,7 +357,9 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
     
-    os.makedirs('models', exist_ok=True)
+    # Create models directory with full path
+    models_dir = os.path.join('DyslexiaDetection', 'models')
+    os.makedirs(models_dir, exist_ok=True)
     
     print("Loading and preprocessing data...")
     X, y = load_and_preprocess_data()
@@ -406,8 +387,21 @@ def main():
         f.write(str(model))
     
     print("\nTraining model...")
+    criterion = nn.BCELoss()
+    optimizer = optim.AdamW(
+        model.parameters(),
+        lr=0.001,
+        weight_decay=0.0001
+    )
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',
+        factor=0.5,
+        patience=10,
+        min_lr=1e-6
+    )
     train_losses, val_losses, train_accs, val_accs = train_model(
-        model, train_loader, val_loader, device
+        model, train_loader, val_loader, criterion, optimizer, scheduler, 200, device
     )
     
     print("\nSaving training history...")
@@ -420,7 +414,7 @@ def main():
         'val_losses': val_losses,
         'train_accs': train_accs,
         'val_accs': val_accs,
-    }, 'models/final_model.pth')
+    }, os.path.join(models_dir, 'final_model.pth'))
     
     print("\nTraining completed!")
 
