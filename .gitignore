@@ -39,7 +39,11 @@ Thumbs.db
 
 # Project specific
 uploads/
-models/
+# Don't ignore trained models
+!models/best_model.pth
+!models/final_model.pth
+# Ignore other model files
+models/*
 *.pth
 *.h5
 training_history.png
