@@ -270,4 +270,5 @@ class EyeTracker:
 
     def release(self):
         """Release resources"""
-        self.face_mesh.close() 
+        if hasattr(self, 'face_mesh') and self.face_mesh:
+            self.face_mesh.close() 

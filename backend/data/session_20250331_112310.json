@@ -1,0 +1,18 @@
+{
+  "start_time": "2025-03-31 11:23:10.802518",
+  "data": [
+    {
+      "timestamp": "2025-03-31 11:23:28.652722",
+      "metrics": {
+        "gaze_stability": 0.95,
+        "blink_rate": 20,
+        "dyslexia_indicators": {
+          "high_backward_saccades": false,
+          "long_fixations": true,
+          "irregular_saccades": false
+        }
+      },
+      "indicators": {}
+    }
+  ]
+}

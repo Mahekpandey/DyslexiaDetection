@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dyslexia Detection - Eye Tracking</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .video-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .metrics-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #videoElement {
+            width: 100%;
+            max-width: 640px;
+            border-radius: 5px;
+        }
+        .metric-card {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .indicator {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .indicator-positive {
+            background: #d4edda;
+            color: #155724;
+        }
+        .indicator-negative {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Calibration overlay styles */
+        #calibrationOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 1000;
+        }
+
+        #calibrationPoints {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .calibration-point {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s;
+        }
+
+        .calibration-point.active {
+            background: #00ff00;
+            box-shadow: 0 0 20px #00ff00;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        /* Reading test overlay styles */
+        #readingTestOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        #testText {
+            max-width: 800px;
+            font-size: 24px;
+            line-height: 1.6;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        #testText p {
+            margin: 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="video-container">
+            <h2>Eye Tracking Feed</h2>
+            <video id="videoElement" autoplay playsinline></video>
+            <div class="controls">
+                <button id="startButton">Start Session</button>
+                <button id="calibrateButton" disabled>Calibrate</button>
+                <button id="startTestButton" disabled>Start Reading Test</button>
+                <button id="endButton" disabled>End Session</button>
+            </div>
+            <div id="calibrationOverlay" style="display: none;">
+                <h3>Calibration Points</h3>
+                <div id="calibrationPoints"></div>
+                <button id="nextCalibrationPoint">Next Point</button>
+            </div>
+            <div id="readingTestOverlay" style="display: none;">
+                <h3>Reading Test</h3>
+                <div id="testText"></div>
+            </div>
+        </div>
+        <div class="metrics-container">
+            <h2>Real-Time Metrics</h2>
+            <div class="metric-card">
+                <h3>Dyslexia Probability</h3>
+                <div class="metric-value" id="dyslexiaProbability">0%</div>
+            </div>
+            <div class="metric-card">
+                <h3>Reading Speed</h3>
+                <div class="metric-value" id="readingSpeed">0</div>
+                <div>words per minute</div>
+            </div>
+            <div class="metric-card">
+                <h3>Fixations</h3>
+                <div class="metric-value" id="fixations">0</div>
+                <div>per minute</div>
+            </div>
+            <div class="metric-card">
+                <h3>Regressions</h3>
+                <div class="metric-value" id="regressions">0</div>
+                <div>backward movements</div>
+            </div>
+            <div class="metric-card">
+                <h3>Indicators</h3>
+                <div id="indicators"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSession = null;
+        let ws = null;
+        let videoStream = null;
+
+        // DOM Elements
+        const videoElement = document.getElementById('videoElement');
+        const startButton = document.getElementById('startButton');
+        const calibrateButton = document.getElementById('calibrateButton');
+        const startTestButton = document.getElementById('startTestButton');
+        const endButton = document.getElementById('endButton');
+        const calibrationOverlay = document.getElementById('calibrationOverlay');
+        const calibrationPoints = document.getElementById('calibrationPoints');
+        const nextCalibrationPoint = document.getElementById('nextCalibrationPoint');
+        const readingTestOverlay = document.getElementById('readingTestOverlay');
+        const testText = document.getElementById('testText');
+        const dyslexiaProbability = document.getElementById('dyslexiaProbability');
+        const readingSpeed = document.getElementById('readingSpeed');
+        const fixations = document.getElementById('fixations');
+        const regressions = document.getElementById('regressions');
+        const indicators = document.getElementById('indicators');
+
+        let currentCalibrationPoint = 0;
+        let calibrationPointsList = [];
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            ws = new WebSocket('ws://localhost:8765');
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                if (currentSession) {
+                    ws.send(JSON.stringify({
+                        type: 'init',
+                        session_id: currentSession
+                    }));
+                }
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'calibration_status') {
+                    handleCalibrationStatus(data);
+                } else if (data.type === 'reading_test_status') {
+                    handleReadingTestStatus(data);
+                } else if (data.type === 'error') {
+                    handleError(data);
+                } else {
+                    updateMetrics(data);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket closed');
+                setTimeout(initWebSocket, 1000); // Reconnect after 1 second
+            };
+        }
+
+        // Handle calibration status
+        function handleCalibrationStatus(data) {
+            if (data.status === 'started') {
+                calibrationPointsList = data.points;
+                currentCalibrationPoint = 0;
+                showCalibrationOverlay();
+                updateCalibrationPoints();
+            }
+        }
+
+        // Handle reading test status
+        function handleReadingTestStatus(data) {
+            if (data.status === 'started') {
+                showReadingTestOverlay();
+                startTestButton.disabled = true;
+            }
+        }
+
+        // Handle errors
+        function handleError(data) {
+            alert(data.message);
+        }
+
+        // Show calibration overlay
+        function showCalibrationOverlay() {
+            calibrationOverlay.style.display = 'block';
+            nextCalibrationPoint.disabled = false;
+        }
+
+        // Hide calibration overlay
+        function hideCalibrationOverlay() {
+            calibrationOverlay.style.display = 'none';
+            nextCalibrationPoint.disabled = true;
+        }
+
+        // Update calibration points display
+        function updateCalibrationPoints() {
+            calibrationPoints.innerHTML = '';
+            calibrationPointsList.forEach((point, index) => {
+                const pointElement = document.createElement('div');
+                pointElement.className = `calibration-point ${index === currentCalibrationPoint ? 'active' : ''}`;
+                pointElement.style.left = `${point[0] * 100}%`;
+                pointElement.style.top = `${point[1] * 100}%`;
+                calibrationPoints.appendChild(pointElement);
+            });
+        }
+
+        // Show reading test overlay
+        function showReadingTestOverlay() {
+            readingTestOverlay.style.display = 'block';
+            // Example reading test text
+            testText.innerHTML = `
+                <p>The quick brown fox jumps over the lazy dog. This is a sample text for the reading test.
+                Please read this text naturally while we track your eye movements.</p>
+            `;
+        }
+
+        // Hide reading test overlay
+        function hideReadingTestOverlay() {
+            readingTestOverlay.style.display = 'none';
+        }
+
+        // Start video stream
+        async function startVideo() {
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = videoStream;
+            } catch (error) {
+                console.error('Error accessing webcam:', error);
+            }
+        }
+
+        // Start new session
+        async function startSession() {
+            try {
+                const response = await fetch('http://localhost:5000/api/start-session', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                currentSession = data.session_id;
+                
+                startButton.disabled = true;
+                calibrateButton.disabled = false;
+                startTestButton.disabled = true;
+                endButton.disabled = false;
+                
+                // Initialize WebSocket with session
+                initWebSocket();
+                
+                // Start sending frames
+                startFrameCapture();
+            } catch (error) {
+                console.error('Error starting session:', error);
+            }
+        }
+
+        // Start calibration
+        function startCalibration() {
+            if (ws && currentSession) {
+                ws.send(JSON.stringify({
+                    type: 'calibration_start',
+                    session_id: currentSession
+                }));
+                calibrateButton.disabled = true;
+            }
+        }
+
+        // Handle next calibration point
+        function handleNextCalibrationPoint() {
+            currentCalibrationPoint++;
+            if (currentCalibrationPoint >= calibrationPointsList.length) {
+                hideCalibrationOverlay();
+                startTestButton.disabled = false;
+            } else {
+                updateCalibrationPoints();
+            }
+        }
+
+        // Start reading test
+        function startReadingTest() {
+            if (ws && currentSession) {
+                const testText = "The quick brown fox jumps over the lazy dog. This is a sample text for the reading test. Please read this text naturally while we track your eye movements.";
+                ws.send(JSON.stringify({
+                    type: 'reading_test_start',
+                    session_id: currentSession,
+                    text: testText
+                }));
+            }
+        }
+
+        // End session
+        async function endSession() {
+            if (ws && currentSession) {
+                ws.send(JSON.stringify({
+                    type: 'end_session',
+                    session_id: currentSession
+                }));
+                ws.close();
+                
+                try {
+                    await fetch(`http://localhost:5000/api/end-session/${currentSession}`, {
+                        method: 'POST'
+                    });
+                } catch (error) {
+                    console.error('Error ending session:', error);
+                }
+                
+                currentSession = null;
+                startButton.disabled = false;
+                calibrateButton.disabled = true;
+                startTestButton.disabled = true;
+                endButton.disabled = true;
+                hideCalibrationOverlay();
+                hideReadingTestOverlay();
+                stopFrameCapture();
+            }
+        }
+
+        // Capture and send video frames
+        let frameInterval;
+        function startFrameCapture() {
+            frameInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN && currentSession) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = videoElement.videoWidth;
+                    canvas.height = videoElement.videoHeight;
+                    canvas.getContext('2d').drawImage(videoElement, 0, 0);
+                    
+                    const frame = canvas.toDataURL('image/jpeg').split(',')[1];
+                    ws.send(JSON.stringify({
+                        type: 'frame',
+                        session_id: currentSession,
+                        frame: frame
+                    }));
+                }
+            }, 100); // Send frame every 100ms
+        }
+
+        function stopFrameCapture() {
+            if (frameInterval) {
+                clearInterval(frameInterval);
+                frameInterval = null;
+            }
+        }
+
+        // Update metrics display
+        function updateMetrics(data) {
+            dyslexiaProbability.textContent = `${data.dyslexia_probability}%`;
+            readingSpeed.textContent = data.reading_speed;
+            fixations.textContent = data.fixations;
+            regressions.textContent = data.regressions;
+            
+            // Update indicators
+            indicators.innerHTML = '';
+            for (const [name, value] of Object.entries(data.indicators)) {
+                const indicator = document.createElement('div');
+                indicator.className = `indicator ${value ? 'indicator-positive' : 'indicator-negative'}`;
+                indicator.textContent = name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                indicators.appendChild(indicator);
+            }
+        }
+
+        // Event listeners
+        startButton.addEventListener('click', startSession);
+        calibrateButton.addEventListener('click', startCalibration);
+        startTestButton.addEventListener('click', startReadingTest);
+        endButton.addEventListener('click', endSession);
+        nextCalibrationPoint.addEventListener('click', handleNextCalibrationPoint);
+
+        // Initialize
+        startVideo();
+    </script>
+</body>
+</html> 

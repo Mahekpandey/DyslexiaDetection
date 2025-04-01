@@ -5,5 +5,6 @@ reading patterns to assist in dyslexia detection.
 """
 
 from .eye_tracker import EyeTracker
+from .reading_analyzer import ReadingAnalyzer
 
-__all__ = ['EyeTracker'] 
+__all__ = ['EyeTracker', 'ReadingAnalyzer'] 

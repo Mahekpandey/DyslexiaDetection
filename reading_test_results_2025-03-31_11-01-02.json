@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-03-31_11-01-02",
+  "sections": {
+    "simple": {
+      "duration_seconds": 26.176367044448853,
+      "words_per_minute": 56.845168677276625,
+      "dyslexia_indicators": {
+        "indicators": {
+          "high_backward_saccades": false,
+          "long_fixations": 

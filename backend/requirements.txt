@@ -1,0 +1,8 @@
+flask==2.2.5
+flask-cors==4.0.0
+websockets==11.0.3
+numpy==1.23.5
+opencv-python==4.8.0.74
+mediapipe==0.10.5
+python-dotenv==1.0.0
+--only-binary :all: 

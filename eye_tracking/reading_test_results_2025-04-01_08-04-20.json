@@ -1,0 +1,62 @@
+{
+  "timestamp": "2025-04-01_08-04-20",
+  "sections": {
+    "simple": {
+      "duration_seconds": 49.65024781227112,
+      "words_per_minute": 29.969638935663863,
+      "dyslexia_indicators": {
+        "indicators": {
+          "high_backward_saccades": false,
+          "long_fixations": true,
+          "irregular_saccades": false,
+          "high_blink_rate": true,
+          "poor_gaze_stability": false,
+          "excessive_vertical_movement": true,
+          "frequent_regressions": false,
+          "slow_reading_speed": true
+        },
+        "probability": 0.45,
+        "severity": "moderate"
+      },
+      "total_words": 24.8
+    },
+    "complex": {
+      "duration_seconds": 0.8961403369903564,
+      "words_per_minute": 2008.6139700453748,
+      "dyslexia_indicators": {
+        "indicators": {
+          "high_backward_saccades": false,
+          "long_fixations": true,
+          "irregular_saccades": false,
+          "high_blink_rate": true,
+          "poor_gaze_stability": false,
+          "excessive_vertical_movement": true,
+          "frequent_regressions": false,
+          "slow_reading_speed": true
+        },
+        "probability": 0.45,
+        "severity": "moderate"
+      },
+      "total_words": 30.0
+    },
+    "numbers": {
+      "duration_seconds": 0.3953702449798584,
+      "words_per_minute": 3460.0479357511867,
+      "dyslexia_indicators": {
+        "indicators": {
+          "high_backward_saccades": false,
+          "long_fixations": true,
+          "irregular_saccades": false,
+          "high_blink_rate": true,
+          "poor_gaze_stability": false,
+          "excessive_vertical_movement": true,
+          "frequent_regressions": false,
+          "slow_reading_speed": true
+        },
+        "probability": 0.45,
+        "severity": "moderate"
+      },
+      "total_words": 22.8
+    }
+  }
+}

@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Users\pande\OneDrive\Desktop\backenddyslexia\DyslexiaDetection\eye_tracking_env"
+VIRTUAL_ENV="C:\Users\pande\OneDrive\Desktop\backenddyslexia\DyslexiaDetection\venv_py310"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
@@ -55,9 +55,9 @@ fi
 
 if [ -z "${VIRTUAL_ENV_DISABLE_PROMPT:-}" ] ; then
     _OLD_VIRTUAL_PS1="${PS1:-}"
-    PS1="(eye_tracking_env) ${PS1:-}"
+    PS1="(venv_py310) ${PS1:-}"
     export PS1
-    VIRTUAL_ENV_PROMPT="(eye_tracking_env) "
+    VIRTUAL_ENV_PROMPT="(venv_py310) "
     export VIRTUAL_ENV_PROMPT
 fi
 
