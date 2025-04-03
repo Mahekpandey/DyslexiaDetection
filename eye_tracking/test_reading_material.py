@@ -199,6 +199,72 @@ class ReadingTest:
             json.dump(results, f, indent=2)
         print(f"\nResults saved to {filename}")
 
+def main():
+    # Initialize the reading analyzer
+    analyzer = ReadingAnalyzer()
+    
+    # Start video capture
+    cap = cv2.VideoCapture(0)
+    
+    print("Starting reading test...")
+    print("Press 'q' to quit")
+    print("Press 's' to start/restart the reading test")
+    print("Press 'p' to pause/resume")
+    
+    paused = True
+    
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                print("Failed to grab frame")
+                break
+            
+            # Flip frame horizontally for more intuitive interaction
+            frame = cv2.flip(frame, 1)
+            
+            if not paused:
+                # Process frame with reading analysis
+                processed_frame, metrics = analyzer.process_frame(frame)
+                
+                # Display metrics
+                if metrics:
+                    print(f"\rDyslexia Probability: {metrics['dyslexia_probability']:.2%} | "
+                          f"Reading Speed: {metrics['reading_speed']:.1f} WPM | "
+                          f"Fixations: {metrics['fixation_count']} | "
+                          f"Regressions: {metrics['regression_count']}", end='')
+            else:
+                # Just show the frame with text when paused
+                processed_frame = frame.copy()
+                analyzer._draw_text(processed_frame)
+                cv2.putText(processed_frame, "PAUSED - Press 's' to start", 
+                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            
+            # Display the frame
+            cv2.imshow('Reading Test', processed_frame)
+            
+            # Handle key presses
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
+            elif key == ord('s'):
+                # Reset analyzer and start new test
+                analyzer = ReadingAnalyzer()
+                paused = False
+                print("\nStarting new reading test...")
+            elif key == ord('p'):
+                paused = not paused
+                if paused:
+                    print("\nTest paused")
+                else:
+                    print("\nTest resumed")
+                
+    except Exception as e:
+        print(f"\nError during reading test: {str(e)}")
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        analyzer.release()
+
 if __name__ == "__main__":
-    test = ReadingTest()
-    test.run_test() 
+    main() 

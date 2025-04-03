@@ -13,8 +13,10 @@ class WebSocketHandler:
         Args:
             app: Flask application instance
         """
-        self.socketio = SocketIO(app, cors_allowed_origins="*")
+        self.socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
         self.webcam_handler = WebcamHandler()
+        self.frame_rate = 30  # Target FPS
+        self.frame_interval = 1.0 / self.frame_rate
         self.setup_routes()
 
     def setup_routes(self):
@@ -39,21 +41,30 @@ class WebSocketHandler:
 
     def start_frame_stream(self):
         """Start streaming frames to the client"""
-        def stream_frames():
+        async def stream_frames():
+            last_frame_time = 0
             while True:
-                result = self.webcam_handler.get_frame()
-                if result is None:
-                    break
+                current_time = asyncio.get_event_loop().time()
+                elapsed = current_time - last_frame_time
                 
-                frame_bytes, eye_data = result
-                frame_base64 = base64.b64encode(frame_bytes).decode('utf-8')
-                
-                emit('frame', {
-                    'frame': frame_base64,
-                    'eye_data': eye_data
-                })
+                if elapsed >= self.frame_interval:
+                    result = self.webcam_handler.get_frame()
+                    if result is None:
+                        break
+                    
+                    frame_bytes, eye_data = result
+                    frame_base64 = base64.b64encode(frame_bytes).decode('utf-8')
+                    
+                    emit('frame', {
+                        'frame': frame_base64,
+                        'eye_data': eye_data
+                    })
+                    
+                    last_frame_time = current_time
+                else:
+                    await asyncio.sleep(self.frame_interval - elapsed)
 
-        asyncio.run(stream_frames())
+        asyncio.create_task(stream_frames())
 
     def run(self, host: str = '0.0.0.0', port: int = 5000):
         """Run the WebSocket server"""

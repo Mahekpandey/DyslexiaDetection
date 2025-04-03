@@ -3,6 +3,8 @@ import mediapipe as mp
 import numpy as np
 from typing import Tuple, List, Dict, Optional
 import math
+from collections import deque
+import time
 
 class EyeTracker:
     def __init__(self):
@@ -10,265 +12,558 @@ class EyeTracker:
         self.face_mesh = self.mp_face_mesh.FaceMesh(
             max_num_faces=1,
             refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_detection_confidence=0.7,  # Increased confidence threshold
+            min_tracking_confidence=0.7
         )
         self.mp_drawing = mp.solutions.drawing_utils
         
-        # Define eye landmark indices
+        # Enhanced eye landmark indices for better accuracy
         self.LEFT_EYE_INDICES = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7]
         self.RIGHT_EYE_INDICES = [362, 398, 384, 385, 386, 387, 388, 466, 263, 249, 390, 373, 374, 380, 381, 382]
         
-        # Upper and lower eyelid indices for blink detection
-        self.LEFT_EYE_UPPER = [159, 160, 161]
-        self.LEFT_EYE_LOWER = [145, 144, 163]
-        self.RIGHT_EYE_UPPER = [386, 385, 384]
-        self.RIGHT_EYE_LOWER = [374, 373, 390]
+        # Refined upper and lower eyelid indices
+        self.LEFT_EYE_UPPER = [159, 160, 161, 246]
+        self.LEFT_EYE_LOWER = [145, 144, 163, 33]
+        self.RIGHT_EYE_UPPER = [386, 385, 384, 398]
+        self.RIGHT_EYE_LOWER = [374, 373, 390, 362]
         
-        # Pupil indices (iris landmarks)
+        # Iris landmarks for precise gaze tracking
         self.LEFT_IRIS = [474, 475, 476, 477]
         self.RIGHT_IRIS = [469, 470, 471, 472]
         
-        # Blink detection parameters
-        self.blink_threshold = 0.2  # EAR threshold for blink detection
-        self.blink_frames = []      # Store recent EAR values
-        self.blink_window = 10      # Number of frames to store for blink detection
-        self.min_blink_frames = 2   # Minimum frames for a blink
+        # Enhanced blink detection parameters
+        self.blink_threshold = 0.23  # Adjusted threshold
+        self.blink_frames = deque(maxlen=15)  # Increased buffer
+        self.min_blink_frames = 3
+        self.blink_history = deque(maxlen=300)  # 10 seconds at 30fps
         
-        # Gaze direction parameters
-        self.gaze_history = []      # Store recent gaze directions
-        self.gaze_window = 5        # Number of frames to average for gaze smoothing
+        # Enhanced gaze tracking parameters
+        self.gaze_history = deque(maxlen=10)
+        self.smoothing_factor = 0.4
+        self.gaze_stability_threshold = 0.1
+        
+        # Data collection for ML
+        self.frame_timestamps = []
+        self.eye_metrics = {
+            'fixations': [],
+            'saccades': [],
+            'blinks': [],
+            'gaze_positions': [],
+            'pupil_sizes': []
+        }
+        
+        # Frame processing
+        self.frame_count = 0
+        self.last_landmarks = None
+        self.last_eye_data = None
+        self.frame_shape = None
+        self.fps = 30.0  # Assumed fps
+        
+        # Initialize feature extraction parameters
+        self.min_fixation_duration = 0.1  # 100ms
+        self.max_saccade_velocity = 500  # degrees/second
+        self.saccade_threshold = 0.1  # normalized units
 
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Dict]:
-        """
-        Process a single frame for eye tracking
-        Args:
-            frame: Input frame (BGR format)
-        Returns:
-            Tuple of (processed frame, eye tracking data)
-        """
-        # Convert BGR to RGB
+        """Process frame with enhanced metrics collection"""
+        if frame is None:
+            return None, {}
+
+        self.frame_count += 1
+        timestamp = time.time()
+        self.frame_timestamps.append(timestamp)
+        
+        # Store frame shape for coordinate conversion
+        if self.frame_shape is None:
+            self.frame_shape = frame.shape[:2]
+
+        # Process frame with MediaPipe
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.face_mesh.process(rgb_frame)
+        frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
         
-        eye_data = {}
-        if results.multi_face_landmarks:
-            for face_landmarks in results.multi_face_landmarks:
-                # Extract eye metrics
-                eye_metrics = self._extract_eye_metrics(frame, face_landmarks)
-                eye_data.update(eye_metrics)
-                
-                # Draw face mesh
-                self.mp_drawing.draw_landmarks(
-                    image=frame,
-                    landmark_list=face_landmarks,
-                    connections=self.mp_face_mesh.FACEMESH_TESSELATION,
-                    landmark_drawing_spec=None,
-                    connection_drawing_spec=self.mp_drawing.DrawingSpec(
-                        thickness=1, circle_radius=1
-                    )
-                )
-                
-                # Draw eye landmarks and gaze
-                self._draw_eye_landmarks(frame, face_landmarks)
-                self._draw_gaze_direction(frame, eye_data)
-                self._draw_blink_status(frame, eye_data)
+        if not results.multi_face_landmarks:
+            return frame, self._get_empty_metrics()
         
-        return frame, eye_data
+        face_landmarks = results.multi_face_landmarks[0]
+        
+        # Extract eye landmarks and metrics
+        left_eye = self._extract_eye_landmarks(face_landmarks, self.LEFT_EYE_INDICES)
+        right_eye = self._extract_eye_landmarks(face_landmarks, self.RIGHT_EYE_INDICES)
+        
+        # Calculate core metrics
+        left_ear = self._calculate_ear(left_eye)
+        right_ear = self._calculate_ear(right_eye)
+        avg_ear = (left_ear + right_ear) / 2.0
+        
+        # Enhanced blink detection
+        is_blink = self._detect_blink(avg_ear)
+        if is_blink:
+            self.blink_history.append(timestamp)
+        
+        # Calculate gaze metrics
+        left_gaze = self._calculate_gaze_direction(left_eye)
+        right_gaze = self._calculate_gaze_direction(right_eye)
+        
+        # Calculate pupil size
+        left_pupil_size = self._calculate_pupil_size(left_eye)
+        right_pupil_size = self._calculate_pupil_size(right_eye)
+        
+        # Store metrics for ML
+        metrics = {
+            'timestamp': timestamp,
+            'left_eye': left_eye,
+            'right_eye': right_eye,
+            'left_ear': left_ear,
+            'right_ear': right_ear,
+            'avg_ear': avg_ear,
+            'is_blink': is_blink,
+            'left_gaze': left_gaze,
+            'right_gaze': right_gaze,
+            'left_pupil_size': left_pupil_size,
+            'right_pupil_size': right_pupil_size,
+            'gaze_stability': self._calculate_gaze_stability(),
+            'blink_rate': self._calculate_blink_rate(timestamp)
+        }
+        
+        self._update_ml_features(metrics)
+        
+        # Draw visualizations
+        self._draw_face_mesh(frame, face_landmarks)
+        self._draw_eye_landmarks(frame, left_eye, right_eye)
+        self._draw_blink_status(frame, is_blink)
+        self._draw_gaze_direction(frame, left_eye, right_eye, left_gaze, right_gaze)
+        
+        return frame, metrics
 
-    def _calculate_ear(self, eye_upper: List[int], eye_lower: List[int], landmarks) -> float:
+    def _draw_face_mesh(self, frame: np.ndarray, face_landmarks) -> None:
+        """Draw face mesh with improved visibility"""
+        h, w = frame.shape[:2]
+        for connection in self.mp_face_mesh.FACEMESH_TESSELATION:
+            start_idx = connection[0]
+            end_idx = connection[1]
+            
+            start_point = face_landmarks.landmark[start_idx]
+            end_point = face_landmarks.landmark[end_idx]
+            
+            start_x = int(start_point.x * w)
+            start_y = int(start_point.y * h)
+            end_x = int(end_point.x * w)
+            end_y = int(end_point.y * h)
+            
+            # Draw thicker lines with white color for better visibility
+            cv2.line(frame, (start_x, start_y), (end_x, end_y), 
+                    (255, 255, 255), 1, cv2.LINE_AA)
+
+    def _draw_eye_landmarks(self, frame: np.ndarray, left_eye: np.ndarray, right_eye: np.ndarray) -> None:
+        """Draw eye landmarks with improved visibility"""
+        def draw_eye(eye_points):
+            if len(eye_points) < 4:
+                return
+                
+            # Draw iris center
+            center = eye_points[0].astype(int)
+            cv2.circle(frame, tuple(center), 3, (0, 255, 0), -1, cv2.LINE_AA)
+            
+            # Draw iris points
+            for point in eye_points[1:4]:
+                pt = point.astype(int)
+                cv2.circle(frame, tuple(pt), 2, (255, 0, 0), -1, cv2.LINE_AA)
+            
+            # Draw eye contour
+            for point in eye_points[4:]:
+                pt = point.astype(int)
+                cv2.circle(frame, tuple(pt), 2, (0, 255, 255), -1, cv2.LINE_AA)
+                
+            # Draw eye contour lines
+            contour = eye_points[4:].astype(np.int32)
+            cv2.polylines(frame, [contour], True, (0, 255, 255), 1, cv2.LINE_AA)
+        
+        if left_eye.size > 0:
+            draw_eye(left_eye)
+        if right_eye.size > 0:
+            draw_eye(right_eye)
+
+    def _draw_blink_status(self, frame: np.ndarray, is_blink: bool) -> None:
+        """Draw blink status with improved visibility"""
+        text = "BLINK" if is_blink else "OPEN"
+        color = (0, 0, 255) if is_blink else (0, 255, 0)
+        
+        # Position at top-left with outline for better visibility
+        pos = (10, 30)
+        # Draw black outline
+        cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 
+                    (0, 0, 0), 4, cv2.LINE_AA)
+        # Draw colored text
+        cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 
+                    color, 2, cv2.LINE_AA)
+
+    def _calculate_ear(self, eye_landmarks) -> float:
         """Calculate Eye Aspect Ratio (EAR) for blink detection"""
-        upper_y = np.mean([landmarks.landmark[i].y for i in eye_upper])
-        lower_y = np.mean([landmarks.landmark[i].y for i in eye_lower])
-        return abs(upper_y - lower_y)
+        if len(eye_landmarks) < 6:  # Need at least 6 points for EAR
+            return 0.0
+            
+        # Convert landmarks to numpy array if not already
+        landmarks = np.array(eye_landmarks)
+        
+        # Get vertical distances
+        # Use the middle points of upper and lower eyelid
+        upper_mid_idx = len(landmarks) // 3
+        lower_mid_idx = -len(landmarks) // 3
+        
+        upper_point = landmarks[upper_mid_idx]
+        lower_point = landmarks[lower_mid_idx]
+        
+        # Calculate vertical distance
+        vertical_dist = abs(upper_point[1] - lower_point[1])
+        
+        # Get horizontal distance (eye width)
+        left_point = landmarks[0]
+        right_point = landmarks[len(landmarks)//2]
+        horizontal_dist = abs(left_point[0] - right_point[0])
+        
+        # Avoid division by zero
+        if horizontal_dist == 0:
+            return 0.0
+            
+        # Calculate EAR
+        ear = vertical_dist / horizontal_dist
+        
+        # Apply thresholding to make it more stable
+        return ear if ear < 0.5 else 0.5  # Cap the maximum EAR value
 
-    def _detect_blinks(self, left_ear: float, right_ear: float) -> Dict:
-        """Detect blinks using EAR values"""
-        avg_ear = (left_ear + right_ear) / 2
+    def _detect_blink(self, avg_ear: float) -> bool:
+        """Detect blink using EAR value with smoothing"""
+        if avg_ear == 0.0:
+            return False
+            
         self.blink_frames.append(avg_ear)
-        if len(self.blink_frames) > self.blink_window:
-            self.blink_frames.pop(0)
         
-        is_blinking = avg_ear < self.blink_threshold
-        blink_duration = sum(1 for ear in self.blink_frames if ear < self.blink_threshold)
+        # Apply smoothing to EAR values
+        smoothed_ear = np.mean(list(self.blink_frames))
+        is_blinking = smoothed_ear < self.blink_threshold
         
-        return {
-            'is_blinking': is_blinking,
-            'blink_duration': blink_duration,
-            'ear_value': avg_ear
-        }
+        return is_blinking
 
-    def _calculate_gaze_direction(self, iris_center: Tuple[float, float], eye_corners: List[Tuple[float, float]]) -> Tuple[float, float]:
-        """Calculate gaze direction vector"""
-        eye_center = np.mean(eye_corners, axis=0)
-        gaze_vector = np.array(iris_center) - np.array(eye_center)
-        gaze_magnitude = np.linalg.norm(gaze_vector)
-        if gaze_magnitude > 0:
-            gaze_vector = gaze_vector / gaze_magnitude
-        return tuple(gaze_vector)
-
-    def _extract_eye_metrics(self, frame: np.ndarray, landmarks) -> Dict:
-        """
-        Extract eye tracking metrics from face landmarks
-        Args:
-            frame: Input frame
-            landmarks: Face mesh landmarks
-        Returns:
-            Dictionary containing eye tracking metrics
-        """
-        h, w = frame.shape[:2]
-        
-        # Get eye landmarks
-        left_eye = self._get_eye_landmarks(landmarks, "left")
-        right_eye = self._get_eye_landmarks(landmarks, "right")
-        
-        # Calculate eye centers
-        left_center = self._calculate_eye_center(left_eye)
-        right_center = self._calculate_eye_center(right_eye)
-        
-        # Calculate pupil positions using iris landmarks
-        left_pupil = self._calculate_pupil_position(landmarks, self.LEFT_IRIS, w, h)
-        right_pupil = self._calculate_pupil_position(landmarks, self.RIGHT_IRIS, w, h)
-        
-        # Calculate relative pupil positions (normalized coordinates)
-        left_pupil_rel = self._calculate_relative_pupil_position(left_pupil, left_eye)
-        right_pupil_rel = self._calculate_relative_pupil_position(right_pupil, right_eye)
-        
-        # Calculate EAR for blink detection
-        left_ear = self._calculate_ear(self.LEFT_EYE_UPPER, self.LEFT_EYE_LOWER, landmarks)
-        right_ear = self._calculate_ear(self.RIGHT_EYE_UPPER, self.RIGHT_EYE_LOWER, landmarks)
-        blink_data = self._detect_blinks(left_ear, right_ear)
-        
-        # Calculate gaze direction
-        left_gaze = self._calculate_gaze_direction(left_pupil_rel, left_eye)
-        right_gaze = self._calculate_gaze_direction(right_pupil_rel, right_eye)
-        
-        # Update gaze history for smoothing
-        self.gaze_history.append((left_gaze, right_gaze))
-        if len(self.gaze_history) > self.gaze_window:
-            self.gaze_history.pop(0)
-        
-        # Calculate smoothed gaze direction
-        avg_left_gaze = np.mean([g[0] for g in self.gaze_history], axis=0)
-        avg_right_gaze = np.mean([g[1] for g in self.gaze_history], axis=0)
-        
-        return {
-            "left_eye_center": left_center,
-            "right_eye_center": right_center,
-            "left_pupil": left_pupil,
-            "right_pupil": right_pupil,
-            "left_pupil_relative": left_pupil_rel,
-            "right_pupil_relative": right_pupil_rel,
-            "left_gaze": tuple(avg_left_gaze),
-            "right_gaze": tuple(avg_right_gaze),
-            "blink_data": blink_data
-        }
-
-    def _draw_gaze_direction(self, frame: np.ndarray, eye_data: Dict):
-        """Visualize gaze direction"""
-        if 'left_gaze' not in eye_data:
-            return
+    def _calculate_gaze_direction(self, eye_landmarks) -> Tuple[float, float]:
+        """Calculate gaze direction with improved accuracy"""
+        if eye_landmarks is None or len(eye_landmarks) < 4:
+            return (0.0, 0.0)
             
-        h, w = frame.shape[:2]
-        scale = 50  # Scale factor for gaze vector visualization
+        try:
+            # Calculate eye center using iris landmarks
+            eye_center = self._calculate_eye_center(eye_landmarks)
+            if eye_center is None:
+                return (0.0, 0.0)
+                
+            # Calculate iris center (first point is iris center)
+            iris_center = eye_landmarks[0].astype(float)
+            
+            # Calculate gaze vector
+            gaze_x = float(iris_center[0] - eye_center[0])
+            gaze_y = float(iris_center[1] - eye_center[1])
+            
+            # Normalize gaze vector
+            magnitude = math.sqrt(gaze_x * gaze_x + gaze_y * gaze_y)
+            if magnitude > 0:
+                gaze_x /= magnitude
+                gaze_y /= magnitude
+                
+            return (float(gaze_x), float(gaze_y))
+        except (IndexError, TypeError, ValueError):
+            return (0.0, 0.0)
+
+    def _calculate_eye_center(self, eye_landmarks: np.ndarray) -> Tuple[float, float]:
+        """Calculate eye center from landmarks"""
+        if eye_landmarks is None or len(eye_landmarks) < 4:
+            return None
+            
+        try:
+            # Use contour points (indices 4 onwards are contour points)
+            contour_points = eye_landmarks[4:].astype(float)
+            if len(contour_points) == 0:
+                return None
+                
+            # Calculate center as mean of contour points
+            center_x = float(np.mean(contour_points[:, 0]))
+            center_y = float(np.mean(contour_points[:, 1]))
+            
+            return (center_x, center_y)
+        except (IndexError, TypeError, ValueError):
+            # Fallback to iris center if contour calculation fails
+            try:
+                iris_center = eye_landmarks[0].astype(float)
+                return (float(iris_center[0]), float(iris_center[1]))
+            except (IndexError, TypeError, ValueError):
+                return None
+
+    def _extract_eye_landmarks(self, face_landmarks, indices) -> np.ndarray:
+        """Get eye landmarks in image coordinates"""
+        if self.frame_shape is None:
+            return np.zeros((1, 2))
+            
+        h, w = self.frame_shape
+        landmarks = []
         
+        try:
+            # Extract iris landmarks first (first 4 points)
+            for idx in indices[:4]:
+                point = face_landmarks.landmark[idx]
+                landmarks.append([int(point.x * w), int(point.y * h)])
+                
+            # Then extract eye contour landmarks
+            for idx in indices[4:]:
+                point = face_landmarks.landmark[idx]
+                landmarks.append([int(point.x * w), int(point.y * h)])
+        except (IndexError, AttributeError):
+            return np.zeros((1, 2))
+            
+        return np.array(landmarks)
+
+    def _draw_gaze_direction(self, frame: np.ndarray, left_eye: np.ndarray, right_eye: np.ndarray, 
+                           left_gaze: Tuple[float, float], right_gaze: Tuple[float, float]) -> None:
+        """Draw gaze direction with improved visibility"""
+        def draw_eye_gaze(eye_center, gaze, color):
+            if eye_center is None or gaze is None:
+                return
+                
+            try:
+                # Convert eye center to integer coordinates
+                center_x = int(eye_center[0])
+                center_y = int(eye_center[1])
+                
+                # Calculate end point of gaze line
+                scale = 50.0  # Length of the gaze line
+                end_x = int(center_x + gaze[0] * scale)
+                end_y = int(center_y + gaze[1] * scale)
+                
+                # Draw gaze line with improved visibility
+                cv2.arrowedLine(frame, (center_x, center_y), (end_x, end_y), 
+                              color, 2, cv2.LINE_AA, tipLength=0.2)
+            except (TypeError, ValueError):
+                pass
+
         # Draw left eye gaze
-        left_pupil = eye_data['left_pupil']
-        left_gaze = eye_data['left_gaze']
-        left_end = (
-            int(left_pupil[0] + left_gaze[0] * scale),
-            int(left_pupil[1] + left_gaze[1] * scale)
-        )
-        cv2.arrowedLine(frame, 
-                       (int(left_pupil[0]), int(left_pupil[1])),
-                       left_end,
-                       (0, 255, 255), 2)
-        
+        if left_eye.size > 0:
+            left_center = self._calculate_eye_center(left_eye)
+            if left_center:
+                draw_eye_gaze(left_center, left_gaze, (0, 255, 0))
+
         # Draw right eye gaze
-        right_pupil = eye_data['right_pupil']
-        right_gaze = eye_data['right_gaze']
-        right_end = (
-            int(right_pupil[0] + right_gaze[0] * scale),
-            int(right_pupil[1] + right_gaze[1] * scale)
-        )
-        cv2.arrowedLine(frame,
-                       (int(right_pupil[0]), int(right_pupil[1])),
-                       right_end,
-                       (0, 255, 255), 2)
-
-    def _draw_blink_status(self, frame: np.ndarray, eye_data: Dict):
-        """Visualize blink status"""
-        if 'blink_data' not in eye_data:
-            return
-            
-        blink_data = eye_data['blink_data']
-        color = (0, 0, 255) if blink_data['is_blinking'] else (0, 255, 0)
-        status = "BLINK" if blink_data['is_blinking'] else "OPEN"
-        cv2.putText(frame, f"Eyes: {status}", (10, 120),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-        cv2.putText(frame, f"EAR: {blink_data['ear_value']:.2f}", (10, 150),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-
-    def _draw_eye_landmarks(self, frame: np.ndarray, landmarks):
-        """Draw eye landmarks and pupils with different colors"""
-        h, w = frame.shape[:2]
-        
-        # Draw left eye landmarks (green)
-        for idx in self.LEFT_EYE_INDICES:
-            point = landmarks.landmark[idx]
-            x, y = int(point.x * w), int(point.y * h)
-            cv2.circle(frame, (x, y), 2, (0, 255, 0), -1)
-        
-        # Draw right eye landmarks (blue)
-        for idx in self.RIGHT_EYE_INDICES:
-            point = landmarks.landmark[idx]
-            x, y = int(point.x * w), int(point.y * h)
-            cv2.circle(frame, (x, y), 2, (255, 0, 0), -1)
-        
-        # Draw iris landmarks (red)
-        for idx in self.LEFT_IRIS + self.RIGHT_IRIS:
-            point = landmarks.landmark[idx]
-            x, y = int(point.x * w), int(point.y * h)
-            cv2.circle(frame, (x, y), 3, (0, 0, 255), -1)
-
-    def _calculate_pupil_position(self, landmarks, iris_indices: List[int], frame_width: int, frame_height: int) -> Tuple[float, float]:
-        """Calculate pupil position using iris landmarks"""
-        x_coords = []
-        y_coords = []
-        
-        for idx in iris_indices:
-            point = landmarks.landmark[idx]
-            x_coords.append(point.x * frame_width)
-            y_coords.append(point.y * frame_height)
-        
-        return (sum(x_coords) / len(x_coords), sum(y_coords) / len(y_coords))
-
-    def _calculate_relative_pupil_position(self, pupil_pos: Tuple[float, float], eye_landmarks: List[Tuple[float, float]]) -> Tuple[float, float]:
-        """Calculate pupil position relative to eye corners"""
-        # Get eye corner positions
-        eye_left = min(eye_landmarks, key=lambda p: p[0])[0]
-        eye_right = max(eye_landmarks, key=lambda p: p[0])[0]
-        eye_top = min(eye_landmarks, key=lambda p: p[1])[1]
-        eye_bottom = max(eye_landmarks, key=lambda p: p[1])[1]
-        
-        # Calculate relative position (0 to 1 for both x and y)
-        rel_x = (pupil_pos[0] - eye_left) / (eye_right - eye_left)
-        rel_y = (pupil_pos[1] - eye_top) / (eye_bottom - eye_top)
-        
-        return (rel_x, rel_y)
-
-    def _get_eye_landmarks(self, landmarks, eye: str) -> List[Tuple[float, float]]:
-        """Get landmarks for a specific eye"""
-        indices = self.LEFT_EYE_INDICES if eye == "left" else self.RIGHT_EYE_INDICES
-        return [(landmarks.landmark[idx].x, landmarks.landmark[idx].y) for idx in indices]
-
-    def _calculate_eye_center(self, eye_landmarks: List[Tuple[float, float]]) -> Tuple[float, float]:
-        """Calculate the center point of an eye"""
-        x_coords = [x for x, _ in eye_landmarks]
-        y_coords = [y for _, y in eye_landmarks]
-        return (sum(x_coords) / len(x_coords), sum(y_coords) / len(y_coords))
+        if right_eye.size > 0:
+            right_center = self._calculate_eye_center(right_eye)
+            if right_center:
+                draw_eye_gaze(right_center, right_gaze, (0, 255, 0))
 
     def release(self):
         """Release resources"""
-        if hasattr(self, 'face_mesh') and self.face_mesh:
-            self.face_mesh.close() 
+        if hasattr(self, 'face_mesh'):
+            self.face_mesh.close()
+        cv2.destroyAllWindows()
+
+    def _calculate_pupil_size(self, eye_landmarks: np.ndarray) -> float:
+        """Calculate normalized pupil size"""
+        if len(eye_landmarks) < 4:
+            return 0.0
+            
+        # Use iris landmarks to calculate pupil area
+        iris_points = eye_landmarks[:4]
+        hull = cv2.convexHull(iris_points.astype(np.float32))
+        area = cv2.contourArea(hull)
+        
+        # Normalize by eye width
+        eye_width = np.max(eye_landmarks[:, 0]) - np.min(eye_landmarks[:, 0])
+        if eye_width == 0:
+            return 0.0
+            
+        return area / (eye_width * eye_width)
+
+    def _calculate_blink_rate(self, current_time: float) -> float:
+        """Calculate blinks per minute"""
+        if len(self.blink_history) < 2:
+            return 0.0
+            
+        # Count blinks in the last minute
+        one_minute_ago = current_time - 60
+        recent_blinks = sum(1 for t in self.blink_history if t > one_minute_ago)
+        
+        # Calculate rate based on available time window
+        time_window = min(60.0, current_time - self.blink_history[0])
+        if time_window <= 0:
+            return 0.0
+            
+        return (recent_blinks / time_window) * 60
+
+    def _calculate_gaze_stability(self) -> float:
+        """Calculate gaze stability score"""
+        try:
+            if len(self.gaze_history) < 2:
+                return 1.0
+                
+            # Ensure all values in gaze_history are numeric
+            valid_gaze_points = []
+            for point in self.gaze_history:
+                try:
+                    # Convert to float if it's a tuple
+                    if isinstance(point, tuple):
+                        x = float(point[0])
+                        y = float(point[1])
+                        valid_gaze_points.append([x, y])
+                    else:
+                        # If it's already a numeric value
+                        valid_gaze_points.append([float(point), 0.0])
+                except (TypeError, IndexError, ValueError):
+                    # Skip invalid points
+                    continue
+            
+            if len(valid_gaze_points) < 2:
+                return 1.0
+                
+            # Calculate variance of gaze positions
+            gaze_points = np.array(valid_gaze_points)
+            variance = np.var(gaze_points, axis=0)
+            stability = 1.0 / (1.0 + float(np.mean(variance)))
+            
+            return min(1.0, float(stability))
+        except Exception:
+            # Return default value if any error occurs
+            return 1.0
+
+    def _update_ml_features(self, metrics: Dict) -> None:
+        """Update feature collection for machine learning"""
+        try:
+            # Ensure gaze positions are stored as tuples of floats
+            left_gaze = metrics.get('left_gaze', (0.0, 0.0))
+            right_gaze = metrics.get('right_gaze', (0.0, 0.0))
+            
+            # Convert to float tuples if they aren't already
+            try:
+                left_gaze = (float(left_gaze[0]), float(left_gaze[1]))
+                right_gaze = (float(right_gaze[0]), float(right_gaze[1]))
+            except (TypeError, IndexError, ValueError):
+                left_gaze = (0.0, 0.0)
+                right_gaze = (0.0, 0.0)
+            
+            # Store average gaze position instead of tuple of tuples
+            avg_gaze = (
+                (left_gaze[0] + right_gaze[0]) / 2.0,
+                (left_gaze[1] + right_gaze[1]) / 2.0
+            )
+            self.eye_metrics['gaze_positions'].append(avg_gaze)
+            
+            # Ensure pupil sizes are stored as floats
+            left_pupil = float(metrics.get('left_pupil_size', 0.0))
+            right_pupil = float(metrics.get('right_pupil_size', 0.0))
+            
+            self.eye_metrics['pupil_sizes'].append((
+                left_pupil,
+                right_pupil
+            ))
+            
+            # Update fixations and saccades
+            if len(self.eye_metrics['gaze_positions']) >= 2:
+                try:
+                    prev_gaze = np.array(self.eye_metrics['gaze_positions'][-2])
+                    curr_gaze = np.array(self.eye_metrics['gaze_positions'][-1])
+                    
+                    # Detect saccade
+                    velocity = np.linalg.norm(curr_gaze - prev_gaze) * self.fps
+                    if velocity > self.saccade_threshold:
+                        self.eye_metrics['saccades'].append({
+                            'timestamp': metrics['timestamp'],
+                            'velocity': float(velocity),
+                            'amplitude': float(np.linalg.norm(curr_gaze - prev_gaze))
+                        })
+                    # Detect fixation
+                    elif len(self.eye_metrics['fixations']) == 0 or \
+                         metrics['timestamp'] - self.eye_metrics['fixations'][-1]['end_time'] > self.min_fixation_duration:
+                        self.eye_metrics['fixations'].append({
+                            'start_time': metrics['timestamp'],
+                            'end_time': metrics['timestamp'],
+                            'position': curr_gaze
+                        })
+                    else:
+                        self.eye_metrics['fixations'][-1]['end_time'] = metrics['timestamp']
+                except (TypeError, ValueError, IndexError):
+                    # Skip this update if there's an error
+                    pass
+        except Exception as e:
+            # Log error and continue
+            print(f"Error in _update_ml_features: {str(e)}")
+            pass
+
+    def _get_empty_metrics(self) -> Dict:
+        """Return empty metrics structure"""
+        return {
+            'timestamp': time.time(),
+            'left_eye': np.zeros((1, 2)),
+            'right_eye': np.zeros((1, 2)),
+            'left_ear': 0.0,
+            'right_ear': 0.0,
+            'avg_ear': 0.0,
+            'is_blink': False,
+            'left_gaze': (0, 0),
+            'right_gaze': (0, 0),
+            'left_pupil_size': 0.0,
+            'right_pupil_size': 0.0,
+            'gaze_stability': 1.0,
+            'blink_rate': 0.0
+        }
+
+    def get_ml_features(self) -> Dict:
+        """Get collected features for machine learning"""
+        try:
+            # Calculate fixation metrics
+            fixation_count = len(self.eye_metrics['fixations'])
+            avg_fixation_duration = 0.0
+            if self.eye_metrics['fixations']:
+                durations = [f['end_time'] - f['start_time'] for f in self.eye_metrics['fixations']]
+                avg_fixation_duration = float(np.mean(durations)) if durations else 0.0
+            
+            # Calculate saccade metrics
+            saccade_count = len(self.eye_metrics['saccades'])
+            avg_saccade_velocity = 0.0
+            if self.eye_metrics['saccades']:
+                velocities = [float(s['velocity']) for s in self.eye_metrics['saccades']]
+                avg_saccade_velocity = float(np.mean(velocities)) if velocities else 0.0
+            
+            # Calculate blink rate
+            blink_rate = 0.0
+            if self.frame_timestamps and len(self.frame_timestamps) > 1:
+                time_span = time.time() - self.frame_timestamps[0]
+                if time_span > 0:
+                    blink_rate = float(len(self.blink_history) / time_span * 60)
+            
+            # Calculate gaze stability
+            gaze_stability = self._calculate_gaze_stability()
+            
+            # Calculate pupil size variability
+            pupil_size_variability = 0.0
+            if self.eye_metrics['pupil_sizes']:
+                try:
+                    # Extract left pupil sizes (first element of each tuple)
+                    left_pupil_sizes = [float(p[0]) for p in self.eye_metrics['pupil_sizes']]
+                    pupil_size_variability = float(np.std(left_pupil_sizes)) if left_pupil_sizes else 0.0
+                except (TypeError, IndexError, ValueError):
+                    pupil_size_variability = 0.0
+            
+            return {
+                'fixation_count': int(fixation_count),
+                'avg_fixation_duration': float(avg_fixation_duration),
+                'saccade_count': int(saccade_count),
+                'avg_saccade_velocity': float(avg_saccade_velocity),
+                'blink_rate': float(blink_rate),
+                'gaze_stability': float(gaze_stability),
+                'pupil_size_variability': float(pupil_size_variability)
+            }
+        except Exception as e:
+            # Return default values if any error occurs
+            return {
+                'fixation_count': 0,
+                'avg_fixation_duration': 0.0,
+                'saccade_count': 0,
+                'avg_saccade_velocity': 0.0,
+                'blink_rate': 0.0,
+                'gaze_stability': 1.0,
+                'pupil_size_variability': 0.0
+            } 
