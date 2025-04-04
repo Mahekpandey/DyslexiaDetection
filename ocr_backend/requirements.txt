@@ -1,0 +1,13 @@
+# OCR and TTS Dependencies
+flask==2.0.1
+flask-cors==3.0.10
+Pillow==9.0.0
+easyocr==1.6.2
+pytesseract==0.3.8
+numpy==1.21.2
+opencv-python==4.5.3.56
+pyttsx3==2.90
+gTTS==2.3.1
+requests==2.26.0
+python-dotenv>=1.0.0
+werkzeug>=2.0.0 

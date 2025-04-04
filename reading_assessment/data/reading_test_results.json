@@ -1,0 +1,232 @@
+[
+  {
+    "timestamp": "2024-04-03 10:00:00",
+    "accuracy": 95.5,
+    "words_per_minute": 120,
+    "difficulty": "easy",
+    "total_words": 10,
+    "correct_words": 10,
+    "dyslexia_prediction": false,
+    "dyslexia_probability": 15.2
+  },
+  {
+    "timestamp": "2024-04-03 10:15:00",
+    "accuracy": 92.0,
+    "words_per_minute": 115,
+    "difficulty": "medium",
+    "total_words": 15,
+    "correct_words": 14,
+    "dyslexia_prediction": false,
+    "dyslexia_probability": 18.5
+  },
+  {
+    "timestamp": "2024-04-03 10:30:00",
+    "accuracy": 85.0,
+    "words_per_minute": 90,
+    "difficulty": "hard",
+    "total_words": 20,
+    "correct_words": 17,
+    "dyslexia_prediction": false,
+    "dyslexia_probability": 25.3
+  },
+  {
+    "timestamp": "2024-04-03 11:00:00",
+    "accuracy": 75.5,
+    "words_per_minute": 65,
+    "difficulty": "easy",
+    "total_words": 10,
+    "correct_words": 8,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 78.5
+  },
+  {
+    "timestamp": "2024-04-03 11:15:00",
+    "accuracy": 68.0,
+    "words_per_minute": 55,
+    "difficulty": "medium",
+    "total_words": 15,
+    "correct_words": 10,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 82.3
+  },
+  {
+    "timestamp": "2024-04-03 11:30:00",
+    "accuracy": 60.0,
+    "words_per_minute": 45,
+    "difficulty": "hard",
+    "total_words": 20,
+    "correct_words": 12,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 88.7
+  },
+  {
+    "timestamp": "2025-04-03 22:23:56",
+    "accuracy": 100.0,
+    "words_per_minute": 28.0,
+    "difficulty": null,
+    "total_words": 14,
+    "correct_words": 14,
+    "dyslexia_prediction": null,
+    "dyslexia_probability": null
+  },
+  {
+    "timestamp": "2025-04-04 11:40:00",
+    "accuracy": null,
+    "words_per_minute": null,
+    "difficulty": null,
+    "total_words": null,
+    "correct_words": null,
+    "dyslexia_prediction": null,
+    "dyslexia_probability": null
+  },
+  {
+    "timestamp": "2025-04-04 11:43:13",
+    "accuracy": 0,
+    "words_per_minute": 16,
+    "difficulty": null,
+    "total_words": 9,
+    "correct_words": 0,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 11:43:41",
+    "accuracy": 83.33,
+    "words_per_minute": 12,
+    "difficulty": null,
+    "total_words": 6,
+    "correct_words": 5,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 70
+  },
+  {
+    "timestamp": "2025-04-04 11:46:18",
+    "accuracy": 0,
+    "words_per_minute": 12,
+    "difficulty": null,
+    "total_words": 8,
+    "correct_words": 0,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 11:46:48",
+    "accuracy": 66.67,
+    "words_per_minute": 12,
+    "difficulty": null,
+    "total_words": 6,
+    "correct_words": 4,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 11:51:44",
+    "accuracy": 0,
+    "words_per_minute": 12,
+    "difficulty": null,
+    "total_words": 8,
+    "correct_words": 0,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 11:52:09",
+    "accuracy": 0,
+    "words_per_minute": 14,
+    "difficulty": null,
+    "total_words": 9,
+    "correct_words": 0,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 11:54:46",
+    "accuracy": 75,
+    "words_per_minute": 16,
+    "difficulty": null,
+    "total_words": 8,
+    "correct_words": 6,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 11:54:46",
+    "accuracy": 75,
+    "words_per_minute": 16,
+    "difficulty": null,
+    "total_words": 8,
+    "correct_words": 6,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 11:55:56",
+    "accuracy": 66.67,
+    "words_per_minute": 12,
+    "difficulty": null,
+    "total_words": 6,
+    "correct_words": 4,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 11:56:25",
+    "accuracy": 0,
+    "words_per_minute": 12,
+    "difficulty": null,
+    "total_words": 8,
+    "correct_words": 0,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 11:56:50",
+    "accuracy": 15.38,
+    "words_per_minute": 24,
+    "difficulty": null,
+    "total_words": 13,
+    "correct_words": 2,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 12:02:38",
+    "accuracy": 75,
+    "words_per_minute": 16,
+    "difficulty": null,
+    "total_words": 8,
+    "correct_words": 6,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 12:05:04",
+    "accuracy": 100,
+    "words_per_minute": 18,
+    "difficulty": null,
+    "total_words": 9,
+    "correct_words": 9,
+    "dyslexia_prediction": false,
+    "dyslexia_probability": 30
+  },
+  {
+    "timestamp": "2025-04-04 12:05:30",
+    "accuracy": 62.5,
+    "words_per_minute": 16,
+    "difficulty": null,
+    "total_words": 8,
+    "correct_words": 5,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-04 12:08:48",
+    "accuracy": 100,
+    "words_per_minute": 18,
+    "difficulty": null,
+    "total_words": 9,
+    "correct_words": 9,
+    "dyslexia_prediction": false,
+    "dyslexia_probability": 30
+  }
+]

@@ -5,6 +5,7 @@ from typing import Tuple, List, Dict, Optional
 import math
 from collections import deque
 import time
+from .cognitive_load_analyzer import CognitiveLoadAnalyzer
 
 class EyeTracker:
     def __init__(self):
@@ -63,6 +64,15 @@ class EyeTracker:
         self.min_fixation_duration = 0.1  # 100ms
         self.max_saccade_velocity = 500  # degrees/second
         self.saccade_threshold = 0.1  # normalized units
+        
+        # Add cognitive load analyzer
+        self.cognitive_analyzer = CognitiveLoadAnalyzer()
+        self.cognitive_metrics = {
+            'cognitive_load_score': 0.0,
+            'load_level': 'Low',
+            'pupil_load': 0.0,
+            'blink_load': 0.0
+        }
 
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Dict]:
         """Process frame with enhanced metrics collection"""
@@ -487,6 +497,46 @@ class EyeTracker:
                 except (TypeError, ValueError, IndexError):
                     # Skip this update if there's an error
                     pass
+            
+            # Update cognitive load metrics
+            timestamp = time.time()
+            
+            # Calculate average pupil size from the tuple
+            pupil_size_tuple = self.eye_metrics['pupil_sizes'][-1] if self.eye_metrics['pupil_sizes'] else (0.0, 0.0)
+            avg_pupil_size = (float(pupil_size_tuple[0]) + float(pupil_size_tuple[1])) / 2.0
+            
+            # Update pupil metrics
+            pupil_metrics = self.cognitive_analyzer.update_pupil_size(
+                pupil_size=avg_pupil_size,
+                timestamp=timestamp
+            )
+            
+            # Update blink metrics
+            is_eye_closed = self._detect_blink(metrics['avg_ear'])
+            blink_metrics = self.cognitive_analyzer.update_blink(
+                is_eye_closed=is_eye_closed,
+                timestamp=timestamp
+            )
+            
+            # Calculate cognitive load
+            if pupil_metrics and blink_metrics:
+                cognitive_load = self.cognitive_analyzer.calculate_cognitive_load(
+                    pupil_metrics=pupil_metrics,
+                    blink_metrics=blink_metrics
+                )
+                
+                if cognitive_load:
+                    self.cognitive_metrics = {
+                        'cognitive_load_score': cognitive_load['cognitive_load_score'],
+                        'load_level': cognitive_load['load_level'],
+                        'pupil_load': cognitive_load['pupil_load_component'],
+                        'blink_load': cognitive_load['blink_load_component']
+                    }
+            
+            # Add cognitive metrics to ML features
+            self.eye_metrics['cognitive_load_score'] = self.cognitive_metrics['cognitive_load_score']
+            self.eye_metrics['pupil_load'] = self.cognitive_metrics['pupil_load']
+            self.eye_metrics['blink_load'] = self.cognitive_metrics['blink_load']
         except Exception as e:
             # Log error and continue
             print(f"Error in _update_ml_features: {str(e)}")
@@ -507,7 +557,10 @@ class EyeTracker:
             'left_pupil_size': 0.0,
             'right_pupil_size': 0.0,
             'gaze_stability': 1.0,
-            'blink_rate': 0.0
+            'blink_rate': 0.0,
+            'cognitive_load_score': 0.0,
+            'pupil_load': 0.0,
+            'blink_load': 0.0
         }
 
     def get_ml_features(self) -> Dict:
@@ -554,7 +607,10 @@ class EyeTracker:
                 'avg_saccade_velocity': float(avg_saccade_velocity),
                 'blink_rate': float(blink_rate),
                 'gaze_stability': float(gaze_stability),
-                'pupil_size_variability': float(pupil_size_variability)
+                'pupil_size_variability': float(pupil_size_variability),
+                'cognitive_load_score': float(self.eye_metrics['cognitive_load_score']),
+                'pupil_load': float(self.eye_metrics['pupil_load']),
+                'blink_load': float(self.eye_metrics['blink_load'])
             }
         except Exception as e:
             # Return default values if any error occurs
@@ -565,5 +621,12 @@ class EyeTracker:
                 'avg_saccade_velocity': 0.0,
                 'blink_rate': 0.0,
                 'gaze_stability': 1.0,
-                'pupil_size_variability': 0.0
-            } 
+                'pupil_size_variability': 0.0,
+                'cognitive_load_score': 0.0,
+                'pupil_load': 0.0,
+                'blink_load': 0.0
+            }
+
+    def get_cognitive_metrics(self):
+        """Return current cognitive load metrics."""
+        return self.cognitive_metrics 

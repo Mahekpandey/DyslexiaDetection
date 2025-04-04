@@ -9,10 +9,17 @@ import {
   Alert,
   Zoom,
   Fade,
+  AppBar,
+  Toolbar,
+  Button,
 } from '@mui/material';
 import { styled, keyframes } from '@mui/material/styles';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import EmojiPeopleIcon from '@mui/icons-material/EmojiPeople';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import HandwritingAnalysis from './components/HandwritingAnalysis';
+import OCRPage from './components/OCRPage';
+import ReadingAssessment from './pages/ReadingAssessment';
 
 const float = keyframes`
   0% { transform: translateY(0px); }
@@ -133,77 +140,34 @@ function App() {
   };
 
   return (
-    <StyledContainer maxWidth="md" sx={{ py: 6 }}>
-      <Typography variant="h3" component="h1">
-        Let's Check Your Handwriting!
-        <EmojiPeopleIcon sx={{ ml: 2, fontSize: 40 }} />
-      </Typography>
-
-      <Zoom in={true} timeout={800}>
-        <Box sx={{ mb: 4 }}>
-          <DropzoneArea {...getRootProps()}>
-            <input {...getInputProps()} />
-            <CloudUploadIcon />
-            <Box sx={{ p: 3 }}>
-              {isDragActive ? (
-                <Typography variant="h6">Drop your magical handwriting here! ✨</Typography>
-              ) : (
-                <Typography variant="h6">
-                  Drop your handwriting here, or click to choose! 🎨
-                </Typography>
-              )}
-              <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
-                We can read JPEG, JPG, and PNG - just like magic! 🪄
-              </Typography>
-            </Box>
-          </DropzoneArea>
-        </Box>
-      </Zoom>
-
-      {preview && (
-        <Fade in={true} timeout={1000}>
-          <Paper elevation={6} sx={{ p: 3, mb: 4 }}>
-            <Typography variant="h6" gutterBottom>Your Magical Writing ✨</Typography>
-            <PreviewImage src={preview} alt="Preview" />
-          </Paper>
-        </Fade>
-      )}
-
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-          <CircularProgress size={60} thickness={5} color="secondary" />
-        </Box>
-      )}
-
-      {error && (
-        <Fade in={true}>
-          <Alert 
-            severity="error" 
-            sx={{ 
-              mb: 4,
-              borderRadius: 4,
-              animation: `${bounce} 1s ease`
-            }}
-          >
-            Oops! {error} 🎭
-          </Alert>
-        </Fade>
-      )}
-
-      {prediction && (
-        <Fade in={true} timeout={1000}>
-          <ResultPaper elevation={6}>
-            <Typography variant="h6" gutterBottom>The Results Are In! 🎉</Typography>
-            <Typography variant="h5" sx={{ my: 2, color: 'primary.light' }}>
-              {prediction.prediction}
+    <Router>
+      <Box sx={{ flexGrow: 1 }}>
+        <AppBar position="static">
+          <Toolbar>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              Dyslexia Detection
             </Typography>
-            <Typography variant="body1" sx={{ color: 'secondary.main' }}>
-              Confidence: <strong>{prediction.confidence}</strong> ⭐
-            </Typography>
-          </ResultPaper>
-        </Fade>
-      )}
-    </StyledContainer>
+            <Button color="inherit" component={Link} to="/">
+              Handwriting Analysis
+            </Button>
+            <Button color="inherit" component={Link} to="/ocr">
+              OCR Reader
+            </Button>
+            <Button color="inherit" component={Link} to="/reading">
+              Reading Assessment
+            </Button>
+          </Toolbar>
+        </AppBar>
+
+        <Container>
+          <Routes>
+            <Route path="/" element={<HandwritingAnalysis />} />
+            <Route path="/ocr" element={<OCRPage />} />
+            <Route path="/reading" element={<ReadingAssessment />} />
+          </Routes>
+        </Container>
+      </Box>
+    </Router>
   );
 }
 

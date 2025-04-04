@@ -1,36 +1,87 @@
 import cv2
 import numpy as np
-from eye_tracker import EyeTracker
 import time
+from .eye_tracker import EyeTracker
 from typing import Dict, List, Tuple, Optional
 import math
 import re
 from collections import defaultdict
+from .cognitive_load_analyzer import CognitiveLoadAnalyzer
 
 class ReadingAnalyzer:
     def __init__(self):
+        """Initialize reading analyzer"""
+        # Initialize eye tracker
         self.eye_tracker = EyeTracker()
+        
+        # Initialize test state
+        self.test_start_time = None
+        self.is_paused = False
+        self.pause_start_time = None
+        self.total_pause_time = 0
+        
+        # Initialize metrics
+        self.fixation_count = 0
+        self.regression_count = 0
+        self.words_read = 0
+        self.reading_speed = 0
+        
+        # Initialize eye metrics
+        self.eye_metrics = {
+            'fixations': [],
+            'saccades': [],
+            'blinks': [],
+            'gaze_positions': [],
+            'pupil_sizes': []
+        }
+        
+        # Add smoothing parameters
+        self.metric_history = {
+            'dyslexia_probability': [],
+            'cognitive_load': [],
+            'fixation_stability': [],
+            'reading_linearity': []
+        }
+        self.smoothing_window = 30  # 1 second at 30fps
+        self.min_active_reading_time = 2.0  # Require 2 seconds of active reading
+        self.active_reading_start = None
+        self.movement_threshold = 0.05  # Minimum movement to consider as intentional
+        self.last_probability = 0.0
+        self.probability_change_rate = 0.1  # Maximum change per frame
+        
+        # Add cognitive load display colors
+        self.load_colors = {
+            'Low': (0, 255, 0),     # Green
+            'Medium': (0, 255, 255), # Yellow
+            'High': (0, 0, 255)      # Red
+        }
+        
+        # Initialize test parameters
+        self.fixation_threshold = 0.1
+        self.saccade_threshold = 0.2
+        self.last_gaze_x = None
+        self.last_gaze_y = None
         self.reading_data = []
+        
+        # Initialize other attributes
         self.calibration_data = []
         self.is_calibrated = False
-        self.test_start_time = None
         self.test_text = None
         self.test_duration = 0
-        self.words_read = 0
-        self.regression_count = 0
-        self.last_gaze_x = None
+        self.current_line = 0
+        self.text_position = (50, 150)
+        self.line_spacing = 40
+        self.text_scale = 0.8
+        self.text_thickness = 2
+        self.background_alpha = 0.7
         self.baseline_metrics = {
             'fixation_durations': [],
             'saccade_velocities': [],
             'gaze_stabilities': []
         }
         
-        # Thresholds
-        self.fixation_threshold = 0.1
-        self.saccade_threshold = 0.3
+        # Initialize thresholds
         self.min_fixation_duration = 0.2
-        
-        # Enhanced dyslexia indicator thresholds
         self.backward_saccade_threshold = 0.4
         self.fixation_duration_threshold = 0.3
         self.saccade_length_threshold = 0.15
@@ -40,14 +91,14 @@ class ReadingAnalyzer:
         self.regression_threshold = 0.35
         self.word_span_threshold = 0.25
         
-        # UI Parameters
+        # Initialize display settings
         self.font = cv2.FONT_HERSHEY_DUPLEX
         self.text_color = (255, 255, 255)
         self.warning_color = (0, 0, 255)
         self.success_color = (0, 255, 0)
         self.info_color = (255, 165, 0)
         
-        # Reading text parameters
+        # Initialize text content
         self.text_to_read = [
             "Please read this text carefully and naturally.",
             "The quick brown fox jumps over the lazy dog.",
@@ -55,20 +106,37 @@ class ReadingAnalyzer:
             "coordination between visual processing and comprehension.",
             "Take your time and try to understand each word."
         ]
-        self.current_line = 0
-        self.text_position = (50, 150)
-        self.line_spacing = 40
-        self.text_scale = 0.8
-        self.text_thickness = 2
-        self.background_alpha = 0.7
         
-        # Initialize metrics
-        self.words_read = 0
-        self.fixation_count = 0
-        self.reading_speed = 0
+        # Initialize regression analysis parameters
+        self.regression_thresholds = {
+            'short': 0.15,   # 15% of screen width
+            'medium': 0.3,   # 30% of screen width
+            'long': 0.45     # 45% of screen width
+        }
+        self.regression_patterns = {
+            'short': 0,  # Within-word regressions
+            'medium': 0,  # Previous word regressions
+            'long': 0,   # Multiple word regressions
+            'vertical': 0 # Line change regressions
+        }
+        self.last_regression_time = None
+        self.regression_frequency = []
         
-        # Initialize test state
-        self.test_text = " ".join(self.text_to_read)  # For word counting
+        # Initialize enhanced detection metrics
+        self.fixation_stability_history = []
+        self.saccade_times = []
+        self.reading_linearity_scores = []
+        self.reread_positions = defaultdict(int)
+        
+        # Initialize stability thresholds
+        self.fixation_stability_threshold = 0.15
+        self.linearity_threshold = 0.25
+        self.saccade_time_threshold = 0.1
+        
+        # Initialize regression timing
+        self.min_regression_duration = 0.1
+        self.regression_start_time = None
+        self.potential_regression = None
 
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Dict]:
         """Process a frame and update reading metrics"""
@@ -127,54 +195,113 @@ class ReadingAnalyzer:
             y += self.line_spacing
 
     def _draw_analysis(self, frame: np.ndarray, metrics: Dict):
-        """Draw analysis results with improved UI"""
-        if not metrics or 'dyslexia_indicators' not in metrics:
-            return
-
-        h, w = frame.shape[:2]
-        indicators = metrics['dyslexia_indicators']
+        """Draw analysis results with enhanced metrics"""
+        # Set up display parameters
+        x, y = 10, 30
+        metrics_color = (255, 255, 255)
         
-        # Draw metrics on the right side with dark background
-        metrics_width = 400
-        x = w - metrics_width
-        y = 40
-        
-        # Draw probability with color gradient
-        prob = indicators['probability']
-        prob_color = self._get_probability_color(prob)
-        text = f"Dyslexia Probability: {prob*100:.1f}%"
-        self._draw_text_with_outline(frame, text, (x, y), prob_color)
-        
-        # Draw severity
-        y += 40
-        severity_color = self._get_severity_color(indicators['severity'])
-        text = f"Severity: {indicators['severity'].upper()}"
-        self._draw_text_with_outline(frame, text, (x, y), severity_color)
-        
-        # Draw indicators with icons and clear true/false values
-        y += 40
-        for name, value in indicators['indicators'].items():
-            color = (0, 0, 255) if value else (0, 255, 0)  # Red for issues, green for normal
-            display_name = name.replace('_', ' ').title()
-            status = "Detected" if value else "Normal"  # More descriptive status
-            text = f"{display_name}: {status}"
-            self._draw_text_with_outline(frame, text, (x, y), color)
-            y += 30
-        
-        # Draw metrics with units
-        y += 10
-        metrics_color = (255, 255, 0)  # Yellow color for metrics
+        # Draw main metrics
         self._draw_text_with_outline(frame, f"Reading Speed: {metrics['reading_speed']} WPM", 
                                    (x, y), metrics_color)
         y += 30
-        self._draw_text_with_outline(frame, f"Fixations: {metrics['fixation_count']}/min", 
-                                   (x, y), metrics_color)
+        
+        # Draw dyslexia probability with color based on severity
+        prob = metrics['dyslexia_indicators']['probability'] * 100
+        severity = metrics['dyslexia_indicators']['severity']
+        severity_color = self._get_severity_color(severity)
+        
+        self._draw_text_with_outline(frame, f"Dyslexia Probability: {prob:.1f}%", 
+                                   (x, y), severity_color)
         y += 30
-        self._draw_text_with_outline(frame, f"Regressions: {metrics['regression_count']}", 
-                                   (x, y), metrics_color)
-        y += 30
-        self._draw_text_with_outline(frame, f"Blink Rate: {metrics['blink_rate']:.1f}/min", 
-                                   (x, y), metrics_color)
+        self._draw_text_with_outline(frame, f"Severity: {severity}", 
+                                   (x, y), severity_color)
+        y += 40
+        
+        # Draw enhanced metrics section
+        enhanced = metrics.get('enhanced_metrics', {})
+        self._draw_text_with_outline(frame, "Enhanced Metrics:", (x, y), metrics_color)
+        y += 25
+        
+        # Draw stability metrics with color coding
+        stability_color = self._get_metric_color(enhanced.get('fixation_stability', 0))
+        self._draw_text_with_outline(frame, 
+            f"Fixation Stability: {enhanced.get('fixation_stability', 0):.2f}", 
+            (x, y), stability_color)
+        y += 25
+        
+        linearity_color = self._get_metric_color(enhanced.get('reading_linearity', 0))
+        self._draw_text_with_outline(frame, 
+            f"Reading Linearity: {enhanced.get('reading_linearity', 0):.2f}", 
+            (x, y), linearity_color)
+        y += 25
+        
+        saccade_color = self._get_metric_color(1.0 - enhanced.get('avg_saccade_time', 0) / 0.1)
+        self._draw_text_with_outline(frame, 
+            f"Avg Saccade Time: {enhanced.get('avg_saccade_time', 0)*1000:.0f}ms", 
+            (x, y), saccade_color)
+        y += 25
+        
+        reread_color = self._get_metric_color(1.0 - enhanced.get('reread_score', 0))
+        self._draw_text_with_outline(frame, 
+            f"Reread Score: {enhanced.get('reread_score', 0):.2f}", 
+            (x, y), reread_color)
+        y += 40
+        
+        # Draw regression analysis
+        if 'regression_analysis' in metrics and metrics['regression_analysis']:
+            reg_analysis = metrics['regression_analysis']
+            patterns = reg_analysis.get('regression_patterns', {})
+            
+            regression_color = self._get_regression_color(reg_analysis.get('regression_severity', 0))
+            self._draw_text_with_outline(frame, "Regression Analysis:", (x, y), regression_color)
+            y += 25
+            
+            # Draw regression counts with severity-based colors
+            counts = [
+                ("Short", patterns.get('short', 0)),
+                ("Medium", patterns.get('medium', 0)),
+                ("Long", patterns.get('long', 0)),
+                ("Line Changes", patterns.get('vertical', 0))
+            ]
+            
+            for label, count in counts:
+                color = self._get_count_color(count, label)
+                self._draw_text_with_outline(frame, f"  {label}: {count}", (x, y), color)
+                y += 25
+            
+            # Draw regression frequency
+            freq = reg_analysis.get('avg_regression_frequency', 0)
+            if freq != float('inf'):
+                self._draw_text_with_outline(frame, 
+                    f"Avg Time Between Regressions: {freq:.1f}s", 
+                    (x, y), regression_color)
+            y += 40
+        
+        # Draw cognitive load section
+        cognitive = metrics['cognitive_metrics']
+        load_level = (
+            'High' if cognitive['load_score'] > 0.7 else
+            'Medium' if cognitive['load_score'] > 0.3 else
+            'Low'
+        )
+        load_color = self.load_colors[load_level]
+        
+        self._draw_text_with_outline(frame, "Cognitive Metrics:", (x, y), metrics_color)
+        y += 25
+        self._draw_text_with_outline(frame, 
+            f"Cognitive Load: {cognitive['load_score']:.2f}", 
+            (x, y), load_color)
+        y += 25
+        self._draw_text_with_outline(frame, 
+            f"Pupil Load: {cognitive['pupil_load']:.2f}", 
+            (x, y), load_color)
+        y += 25
+        self._draw_text_with_outline(frame, 
+            f"Blink Load: {cognitive['blink_load']:.2f}", 
+            (x, y), load_color)
+        
+        # Draw cognitive load bar
+        self._draw_load_bar(frame, x, y + 20, cognitive['load_score'], load_color)
 
     def _draw_text_with_outline(self, frame: np.ndarray, text: str, position: Tuple[int, int], 
                               color: Tuple[int, int, int]):
@@ -195,13 +322,16 @@ class ReadingAnalyzer:
             return (0, 0, 255)  # Red
 
     def _get_severity_color(self, severity: str) -> Tuple[int, int, int]:
-        """Get color based on severity level"""
-        if severity.lower() == 'mild':
-            return (0, 255, 0)  # Green
-        elif severity.lower() == 'moderate':
-            return (0, 255, 255)  # Yellow
-        else:
-            return (0, 0, 255)  # Red
+        """Get color based on enhanced severity levels"""
+        colors = {
+            'Mild': (0, 255, 0),            # Green
+            'Borderline': (0, 255, 128),    # Light Green
+            'Borderline-to-Moderate': (0, 255, 255),  # Cyan
+            'Moderate': (0, 128, 255),      # Light Blue
+            'Moderate-to-Severe': (0, 0, 255),  # Blue
+            'Severe': (0, 0, 128)           # Dark Blue
+        }
+        return colors.get(severity, (255, 255, 255))
 
     def _calculate_vertical_movement(self, eye_data: Dict) -> float:
         """Calculate vertical movement of gaze"""
@@ -499,96 +629,172 @@ class ReadingAnalyzer:
             print(f"Error normalizing saccade velocity: {str(e)}")
             return velocity
 
-    def _analyze_reading_patterns(self) -> Dict:
-        """Enhanced reading pattern analysis with ML-ready features"""
-        if len(self.reading_data) < 2:
-            return self._get_default_metrics()
-
-        # Get ML features from eye tracker
-        ml_features = self.eye_tracker.get_ml_features()
+    def _smooth_metric(self, metric_name: str, new_value: float) -> float:
+        """Apply temporal smoothing to metrics"""
+        history = self.metric_history[metric_name]
+        history.append(new_value)
         
-        # Calculate reading speed (words per minute) with complexity adjustment
-        if self.test_start_time and self.test_text:
-            elapsed_time = max(time.time() - self.test_start_time, 1)
-            self.test_duration = elapsed_time
-            self.words_read = len(self.test_text.split())
+        # Keep only recent history
+        if len(history) > self.smoothing_window:
+            history.pop(0)
             
-            # Adjust reading speed based on text complexity
-            complexity_factor = self._get_text_complexity_factor(self.test_text)
-            raw_reading_speed = (self.words_read / elapsed_time) * 60
-            reading_speed = int(raw_reading_speed * (1.0 - complexity_factor * 0.5))
+        # Apply exponential moving average
+        alpha = 0.1  # Smoothing factor
+        smoothed = history[0]
+        for value in history[1:]:
+            smoothed = alpha * value + (1 - alpha) * smoothed
+            
+        return smoothed
+
+    def _is_active_reading(self, current_time: float) -> bool:
+        """Determine if user is actively reading based on gaze patterns"""
+        if len(self.eye_metrics['gaze_positions']) < 2:
+            return False
+            
+        # Check for consistent horizontal movement
+        positions = np.array(self.eye_metrics['gaze_positions'][-10:])
+        if len(positions) < 2:
+            return False
+            
+        # Calculate average horizontal movement
+        x_positions = positions[:, 0]
+        avg_movement = np.mean(np.abs(np.diff(x_positions)))
+        
+        # If movement is too small, not considered active reading
+        if avg_movement < self.movement_threshold:
+            self.active_reading_start = None
+            return False
+            
+        # Start or continue active reading timer
+        if self.active_reading_start is None:
+            self.active_reading_start = current_time
+            
+        # Check if we've been actively reading long enough
+        return (current_time - self.active_reading_start) >= self.min_active_reading_time
+
+    def _analyze_reading_patterns(self) -> Dict:
+        """Analyze reading patterns with enhanced regression analysis"""
+        current_time = time.time()
+        
+        # Only analyze if actively reading
+        is_active = self._is_active_reading(current_time)
+        
+        # Get ML features and cognitive metrics
+        ml_features = self.eye_tracker.get_ml_features()
+        cognitive_metrics = self.eye_tracker.get_cognitive_metrics()
+        
+        # Calculate reading speed
+        if self.test_start_time:
+            elapsed_time = current_time - self.test_start_time
+            reading_speed = int((self.words_read / elapsed_time) * 60) if elapsed_time > 0 else 0
         else:
             reading_speed = 0
-
-        # Calculate fixation metrics using percentile-based thresholds
-        fixation_duration = ml_features.get('avg_fixation_duration', 0)
-        fixation_threshold = self._get_percentile_threshold('fixation_durations')
-        long_fixations = 1 if fixation_duration > fixation_threshold else 0
+            
+        # Calculate enhanced metrics with smoothing
+        fixation_stability = self._smooth_metric('fixation_stability', 
+                                               self._calculate_fixation_stability())
+        reading_linearity = self._smooth_metric('reading_linearity', 
+                                              self._calculate_reading_linearity())
+        avg_saccade_time = np.mean(self.saccade_times) if self.saccade_times else 0
+        reread_score = self._calculate_reread_score()
         
-        # Update baseline metrics
-        self._update_baseline_metrics({
-            'fixation_duration': fixation_duration,
-            'saccade_velocity': ml_features.get('saccade_velocity', 0),
-            'gaze_stability': ml_features.get('gaze_stability', 0)
-        })
-
-        # Calculate saccade metrics with normalization
-        saccade_velocity = ml_features.get('saccade_velocity', 0)
-        normalized_velocity = self._normalize_saccade_velocity(saccade_velocity)
-        irregular_saccades = 1 if abs(normalized_velocity) > 2.0 else 0  # More than 2 standard deviations
-
-        # Calculate other metrics
-        blink_rate = ml_features.get('blink_rate', 0)
-        gaze_stability = ml_features.get('gaze_stability', 0)
-        pupil_variability = ml_features.get('pupil_variability', 0)
-
-        # Calculate dyslexia probability with adjusted weights
-        indicators = {
-            'backward_saccades': self.regression_count > 0,
-            'long_fixations': long_fixations > 0,
-            'irregular_saccades': irregular_saccades > 0,
-            'high_blink_rate': blink_rate > 0.3,
-            'low_gaze_stability': gaze_stability < 0.7,
-            'high_pupil_variability': pupil_variability > 0.3
-        }
-
-        # Weight the indicators
-        weights = {
-            'backward_saccades': 0.25,
-            'long_fixations': 0.2,
-            'irregular_saccades': 0.2,
-            'high_blink_rate': 0.1,
-            'low_gaze_stability': 0.15,
-            'high_pupil_variability': 0.1
-        }
-
-        # Calculate probability score
-        probability_score = sum(weights[k] * float(v) for k, v in indicators.items())
-        dyslexia_probability = min(probability_score * 100, 100)
-
-        # Determine severity
-        severity = "Mild"
-        if dyslexia_probability > 70:
+        # Get cognitive load components with smoothing
+        cognitive_load = self._smooth_metric('cognitive_load', 
+                                           min(0.8, cognitive_metrics.get('cognitive_load_score', 0.0)))
+        pupil_load = min(0.7, cognitive_metrics.get('pupil_load', 0.0))
+        blink_load = min(0.6, cognitive_metrics.get('blink_load', 0.0))
+        
+        # Get regression analysis only if actively reading
+        regression_analysis = {}
+        if is_active and len(self.eye_metrics['gaze_positions']) >= 2:
+            current_gaze = self.eye_metrics['gaze_positions'][-1]
+            previous_gaze = self.eye_metrics['gaze_positions'][-2]
+            regression_analysis = self._analyze_regression_patterns(
+                current_gaze, previous_gaze, current_time
+            )
+        
+        # Calculate probability only if actively reading
+        if is_active:
+            # Enhanced indicators with smoothed metrics
+            indicators = {
+                'backward_saccades': regression_analysis.get('total_regressions', 0) > 0,
+                'long_fixations': len([f for f in self.eye_metrics.get('fixations', [])
+                                     if f.get('duration', 0) > self.fixation_duration_threshold]) > 3,
+                'irregular_saccades': len([s for s in self.eye_metrics.get('saccades', [])
+                                         if s.get('length', 0) > self.saccade_length_threshold]) > 2,
+                'high_cognitive_load': cognitive_load > 0.5,
+                'high_pupil_load': pupil_load > 0.4,
+                'high_blink_load': blink_load > 0.4,
+                'frequent_regressions': regression_analysis.get('avg_regression_frequency', float('inf')) < 2.0,
+                'long_regressions': regression_analysis.get('regression_patterns', {}).get('long', 0) > 2,
+                'poor_fixation_stability': fixation_stability < self.fixation_stability_threshold,
+                'poor_reading_linearity': reading_linearity < self.linearity_threshold,
+                'slow_saccades': avg_saccade_time > self.saccade_time_threshold,
+                'high_reread_rate': reread_score > 0.3
+            }
+            
+            # Calculate new probability
+            new_probability = sum(
+                weights[k] * float(v) 
+                for k, v in indicators.items()
+            )
+            
+            if regression_analysis.get('regression_severity'):
+                new_probability = (new_probability + regression_analysis['regression_severity']) / 2
+                
+            # Apply sigmoid and smooth the probability
+            new_probability = 1 / (1 + math.exp(-10 * (new_probability - 0.5)))
+            
+            # Limit rate of change
+            probability_diff = new_probability - self.last_probability
+            if abs(probability_diff) > self.probability_change_rate:
+                new_probability = self.last_probability + (
+                    self.probability_change_rate if probability_diff > 0 
+                    else -self.probability_change_rate
+                )
+            
+            self.last_probability = new_probability
+            dyslexia_probability = self._smooth_metric('dyslexia_probability', new_probability)
+        else:
+            # If not actively reading, maintain last probability or decrease slowly
+            dyslexia_probability = max(0, self.last_probability - 0.01)
+            self.last_probability = dyslexia_probability
+        
+        # Enhanced severity classification with smoother transitions
+        dyslexia_probability_pct = 100 * dyslexia_probability
+        if dyslexia_probability_pct > 80:
             severity = "Severe"
-        elif dyslexia_probability > 40:
+        elif dyslexia_probability_pct > 65:
+            severity = "Moderate-to-Severe"
+        elif dyslexia_probability_pct > 50:
             severity = "Moderate"
-
+        elif dyslexia_probability_pct > 35:
+            severity = "Borderline-to-Moderate"
+        elif dyslexia_probability_pct > 20:
+            severity = "Borderline"
+        else:
+            severity = "Mild"
+            
         return {
             'fixation_count': self.fixation_count,
             'regression_count': self.regression_count,
             'reading_speed': reading_speed,
-            'blink_rate': blink_rate,
-            'dyslexia_indicators': {
-                'probability': dyslexia_probability / 100.0,  # Convert to 0-1 range
-                'severity': severity,
-                'indicators': indicators
+            'cognitive_metrics': {
+                'load_score': cognitive_load,
+                'pupil_load': pupil_load,
+                'blink_load': blink_load
             },
-            'ml_features': {
-                'fixation_duration': fixation_duration,
-                'saccade_velocity': normalized_velocity,
-                'gaze_stability': gaze_stability,
-                'pupil_variability': pupil_variability,
-                'text_complexity': complexity_factor if self.test_text else 0.0
+            'enhanced_metrics': {
+                'fixation_stability': fixation_stability,
+                'reading_linearity': reading_linearity,
+                'avg_saccade_time': avg_saccade_time,
+                'reread_score': reread_score
+            },
+            'regression_analysis': regression_analysis,
+            'dyslexia_indicators': {
+                'probability': dyslexia_probability,
+                'severity': severity,
+                'indicators': indicators if is_active else {}
             }
         }
 
@@ -643,3 +849,136 @@ class ReadingAnalyzer:
         self.reading_data = [] 
         self.calibration_data = []
         self.test_text = None 
+
+    def _calculate_fixation_stability(self) -> float:
+        """Calculate how stable fixations are based on gaze position variance"""
+        try:
+            if len(self.fixation_stability_history) < 2:
+                return 0.5  # Default middle value
+            
+            # Calculate movement between consecutive positions
+            movements = []
+            positions = np.array(self.fixation_stability_history)
+            for i in range(1, len(positions)):
+                movement = np.linalg.norm(positions[i] - positions[i-1])
+                movements.append(movement)
+            
+            # Calculate stability score based on average movement
+            avg_movement = np.mean(movements)
+            stability_score = 1.0 / (1.0 + avg_movement * 20)  # Adjusted sensitivity
+            
+            # Map to more realistic range (0.3-0.95)
+            return 0.3 + (stability_score * 0.65)
+        except Exception as e:
+            print(f"Error calculating fixation stability: {str(e)}")
+            return 0.5
+
+    def _calculate_reading_linearity(self) -> float:
+        """Calculate how linear the reading pattern is"""
+        try:
+            if len(self.eye_metrics['gaze_positions']) < 3:
+                return 0.5
+            
+            # Get recent positions
+            positions = np.array(self.eye_metrics['gaze_positions'][-10:])  # Last 10 positions
+            
+            if len(positions) < 3:
+                return 0.5
+                
+            # Calculate vertical deviation
+            y_positions = positions[:, 1]  # Get y coordinates
+            vertical_deviation = np.std(y_positions)
+            
+            # Calculate horizontal progression
+            x_positions = positions[:, 0]  # Get x coordinates
+            x_diffs = np.diff(x_positions)
+            forward_ratio = np.sum(x_diffs > 0) / len(x_diffs)  # Ratio of forward movements
+            
+            # Combine metrics
+            linearity_score = (
+                (1.0 / (1.0 + vertical_deviation * 10)) * 0.6 +  # Vertical stability
+                forward_ratio * 0.4  # Forward progression
+            )
+            
+            # Map to more realistic range (0.3-0.95)
+            return 0.3 + (linearity_score * 0.65)
+        except Exception as e:
+            print(f"Error calculating reading linearity: {str(e)}")
+            return 0.5
+
+    def _calculate_reread_score(self) -> float:
+        """Calculate score based on how often words are reread"""
+        try:
+            if not self.reread_positions:
+                return 0.0
+            
+            # Get reread counts
+            reread_counts = list(self.reread_positions.values())
+            
+            if not reread_counts:
+                return 0.0
+            
+            # Calculate metrics
+            max_rereads = max(reread_counts)
+            avg_rereads = np.mean(reread_counts)
+            
+            # Normalize score (0-1)
+            reread_score = min(1.0, (avg_rereads / 3.0) * (max_rereads / 5.0))
+            
+            return reread_score
+        except Exception as e:
+            print(f"Error calculating reread score: {str(e)}")
+
+    def _get_metric_color(self, value: float) -> Tuple[int, int, int]:
+        """Get color based on metric value (0-1 range)"""
+        if value > 0.7:
+            return (0, 255, 0)  # Green
+        elif value > 0.4:
+            return (0, 255, 255)  # Yellow
+        else:
+            return (0, 0, 255)  # Red
+
+    def _get_regression_color(self, severity: float) -> Tuple[int, int, int]:
+        """Get color based on regression severity"""
+        if severity < 0.3:
+            return (0, 255, 0)  # Green
+        elif severity < 0.6:
+            return (0, 255, 255)  # Yellow
+        else:
+            return (0, 0, 255)  # Red
+
+    def _get_count_color(self, count: int, category: str) -> Tuple[int, int, int]:
+        """Get color based on regression count and category"""
+        thresholds = {
+            'Short': (3, 6),
+            'Medium': (2, 4),
+            'Long': (1, 3),
+            'Line Changes': (2, 4)
+        }
+        low, high = thresholds.get(category, (3, 6))
+        
+        if count <= low:
+            return (0, 255, 0)  # Green
+        elif count <= high:
+            return (0, 255, 255)  # Yellow
+        else:
+            return (0, 0, 255)  # Red
+
+    def _draw_load_bar(self, frame: np.ndarray, x: int, y: int, 
+                      load_score: float, color: Tuple[int, int, int]):
+        """Draw a load bar with the given score"""
+        bar_length = 200
+        bar_height = 20
+        
+        # Draw background bar
+        cv2.rectangle(frame, (x, y), (x + bar_length, y + bar_height),
+                     (128, 128, 128), -1)
+        
+        # Draw filled portion based on load
+        filled_length = int(bar_length * load_score)
+        cv2.rectangle(frame, (x, y), (x + filled_length, y + bar_height),
+                     color, -1)
+        
+        # Draw border
+        cv2.rectangle(frame, (x, y), (x + bar_length, y + bar_height),
+                     (255, 255, 255), 1)
