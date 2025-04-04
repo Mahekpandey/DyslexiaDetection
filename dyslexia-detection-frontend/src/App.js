@@ -16,10 +16,13 @@ import {
 import { styled, keyframes } from '@mui/material/styles';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import EmojiPeopleIcon from '@mui/icons-material/EmojiPeople';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link } from 'react-router-dom';
 import HandwritingAnalysis from './components/HandwritingAnalysis';
 import OCRPage from './components/OCRPage';
 import ReadingAssessment from './pages/ReadingAssessment';
+import SpellingTest from './pages/SpellingTest';
+import WhackAMole from './pages/WhackAMole/WhackAMole';
+import WhackAMoleResults from './pages/WhackAMole/WhackAMoleResults';
 
 const float = keyframes`
   0% { transform: translateY(0px); }
@@ -140,34 +143,41 @@ function App() {
   };
 
   return (
-    <Router>
-      <Box sx={{ flexGrow: 1 }}>
-        <AppBar position="static">
-          <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              Dyslexia Detection
-            </Typography>
-            <Button color="inherit" component={Link} to="/">
-              Handwriting Analysis
-            </Button>
-            <Button color="inherit" component={Link} to="/ocr">
-              OCR Reader
-            </Button>
-            <Button color="inherit" component={Link} to="/reading">
-              Reading Assessment
-            </Button>
-          </Toolbar>
-        </AppBar>
+    <Box sx={{ flexGrow: 1 }}>
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Dyslexia Detection
+          </Typography>
+          <Button color="inherit" component={Link} to="/">
+            Handwriting Analysis
+          </Button>
+          <Button color="inherit" component={Link} to="/ocr">
+            OCR Reader
+          </Button>
+          <Button color="inherit" component={Link} to="/reading">
+            Reading Assessment
+          </Button>
+          <Button color="inherit" component={Link} to="/spelling">
+            Spelling Test
+          </Button>
+          <Button color="inherit" component={Link} to="/whackamole">
+            Response Time Test
+          </Button>
+        </Toolbar>
+      </AppBar>
 
-        <Container>
-          <Routes>
-            <Route path="/" element={<HandwritingAnalysis />} />
-            <Route path="/ocr" element={<OCRPage />} />
-            <Route path="/reading" element={<ReadingAssessment />} />
-          </Routes>
-        </Container>
-      </Box>
-    </Router>
+      <Container>
+        <Routes>
+          <Route path="/" element={<HandwritingAnalysis />} />
+          <Route path="/ocr" element={<OCRPage />} />
+          <Route path="/reading" element={<ReadingAssessment />} />
+          <Route path="/spelling" element={<SpellingTest />} />
+          <Route path="/whackamole" element={<WhackAMole />} />
+          <Route path="/whackamole-results" element={<WhackAMoleResults />} />
+        </Routes>
+      </Container>
+    </Box>
   );
 }
 

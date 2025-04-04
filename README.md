@@ -1,6 +1,6 @@
 # DyslexiaDetection - Comprehensive Reading Assessment Platform
 
-![Training History](./assets/training_history.png)
+![Training History](training_history.png)
 
 ## Overview
 DyslexiaDetection is an integrated platform designed to assist in the early detection and support of dyslexia through multiple assessment methods. The platform combines reading assessment, OCR-based text conversion, and handwriting analysis to provide a comprehensive evaluation system.
@@ -93,7 +93,7 @@ Pattern Analysis → ML Processing → Results Generation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/DyslexiaDetection.git
+git clone https://github.com/mahekpandey/DyslexiaDetection.git
 cd DyslexiaDetection
 ```
 
