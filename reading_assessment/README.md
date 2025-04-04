@@ -1,14 +1,130 @@
-# Reading Assessment Feature
+# Reading Assessment Module
 
-This module provides functionality for assessing reading speed and accuracy in children, with a focus on dyslexia detection.
+## Overview
+The Reading Assessment module is a comprehensive system for evaluating reading capabilities and potential dyslexia indicators through speech recognition and analysis. It provides real-time feedback on reading performance with features like word-by-word pronunciation assistance and speed control.
 
-## Features
+## Technical Architecture
 
-- Text-to-speech synthesis for reading passages
-- Real-time reading speed calculation
-- Accuracy assessment
-- Multiple difficulty levels
-- Results tracking and analysis
+### Frontend (React.js)
+- **Core Libraries**:
+  - `React`: UI component management and state handling
+  - `@mui/material`: Material UI components for modern interface design
+  - `@mui/icons-material`: Icon components for visual feedback
+  - `Web Speech API`: Browser's built-in text-to-speech for pronunciation assistance
+
+- **Key Components**:
+  1. Reading Interface
+     - Displays reading passages
+     - Shows recording status with visual feedback
+     - Real-time speech recognition status updates
+  
+  2. Results Display
+     - Accuracy percentage
+     - Words per minute calculation
+     - Dyslexia prediction indicators
+     - Word-by-word error analysis
+     - Interactive pronunciation practice with speed control
+
+### Backend (Python/Flask)
+- **Core Libraries**:
+  - `Flask`: Web server framework
+  - `speech_recognition`: Audio capture and speech-to-text conversion
+  - `pyttsx3`: Text-to-speech engine for server-side audio processing
+  - `numpy`: Numerical computations for analysis
+  - `scikit-learn`: ML model for dyslexia prediction
+
+- **Key Components**:
+  1. Speech Handler (`speech_handler.py`)
+     - Manages audio recording
+     - Handles speech recognition
+     - Processes text analysis
+     - Calculates reading metrics
+
+  2. ML Model (`ml_model.py`)
+     - Analyzes reading patterns
+     - Predicts dyslexia indicators
+     - Processes reading metrics
+
+## Data Flow
+1. **Assessment Initialization**
+   ```
+   Frontend → /api/reading/start → Backend generates passage → Frontend displays
+   ```
+
+2. **Recording Process**
+   ```
+   Start Recording → Backend initializes → Ambient noise adjustment → 
+   Active listening → Speech processing → Text recognition
+   ```
+
+3. **Analysis Pipeline**
+   ```
+   Recognized Text → Text cleaning → Compare with original → 
+   Calculate metrics → ML analysis → Results generation
+   ```
+
+## API Endpoints
+
+### Reading Assessment
+- `POST /api/reading/start`: Initiates assessment, returns reading passage
+- `POST /api/reading/analyze`: Analyzes reading performance
+- `POST /api/reading/save-result`: Stores assessment results
+
+### Speech Processing
+- `POST /api/speech/init`: Initializes recording session
+- `POST /api/speech/record`: Handles speech recording
+- `GET /api/speech/status`: Returns current recording state
+- `POST /api/speech/transcribe`: Converts speech to text
+
+## Metrics Calculation
+
+### Accuracy
+- Word-by-word comparison between original and spoken text
+- Calculated as: (correct_words / total_words) × 100%
+
+### Reading Speed
+- Words per minute calculation based on recording duration
+- Formula: (word_count / duration_in_seconds) × 60
+
+### Error Analysis
+- Types of errors tracked:
+  - Mispronunciations
+  - Omissions (missing words)
+  - Substitutions
+  - Hesitations
+
+## ML Model Features
+- Reading speed analysis
+- Error pattern recognition
+- Pronunciation consistency
+- Word recognition accuracy
+- Reading fluency assessment
+
+## State Management
+- Recording states:
+  - `idle`: Initial/ready state
+  - `ADJUSTING`: Calibrating for ambient noise
+  - `LISTENING`: Active recording
+  - `PROCESSING`: Speech recognition in progress
+
+## Security and Performance
+- Audio data processed in real-time
+- No permanent storage of audio recordings
+- Results anonymized and stored securely
+- Optimized for low latency response
+
+## Error Handling
+- Ambient noise detection
+- Network connectivity issues
+- Speech recognition failures
+- Invalid input protection
+
+## Future Enhancements
+- Multiple language support
+- Custom passage creation
+- Progress tracking over time
+- Detailed error pattern analysis
+- Enhanced ML model training
 
 ## Setup
 
@@ -52,48 +168,6 @@ mkdir -p static/audio  # On Linux/Mac
 ```bash
 python app.py
 ```
-
-## API Endpoints
-
-### 1. Start Reading Assessment
-- **Endpoint**: `/api/reading/start`
-- **Method**: POST
-- **Body**: 
-```json
-{
-    "difficulty": "easy|medium|hard"
-}
-```
-
-### 2. Analyze Reading
-- **Endpoint**: `/api/reading/analyze`
-- **Method**: POST
-- **Body**:
-```json
-{
-    "user_reading": "text read by user",
-    "original_text": "original passage",
-    "reading_time": 60  // in seconds
-}
-```
-
-### 3. Save Results
-- **Endpoint**: `/api/reading/save-result`
-- **Method**: POST
-- **Body**:
-```json
-{
-    "accuracy": 85.5,
-    "words_per_minute": 120,
-    "difficulty": "medium",
-    "total_words": 20,
-    "correct_words": 17
-}
-```
-
-## Integration with Main Application
-
-This feature is designed to be integrated with the main dyslexia detection application. It runs on port 5001 (configurable via .env) and can be accessed through the main application's frontend.
 
 ## Directory Structure
 
