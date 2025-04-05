@@ -248,5 +248,15 @@
     "correct_words": 6,
     "dyslexia_prediction": true,
     "dyslexia_probability": 100
+  },
+  {
+    "timestamp": "2025-04-05 20:35:09",
+    "accuracy": 0,
+    "words_per_minute": 4,
+    "difficulty": null,
+    "total_words": 13,
+    "correct_words": 0,
+    "dyslexia_prediction": true,
+    "dyslexia_probability": 100
   }
 ]

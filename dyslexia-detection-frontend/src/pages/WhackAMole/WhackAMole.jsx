@@ -2,113 +2,150 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+
+const MAX_ATTEMPTS = 3;
+const SHOW_DURATION = 1000;
 
 const GameContainer = styled.div`
+  min-height: 100vh;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem;
-  min-height: 100vh;
-  background: #121212;
+  padding-top: 150px;
+  position: relative;
+  overflow: hidden;
+  background: #030303;
+
+  h1 {
+    color: white;
+    margin-bottom: 2rem;
+    font-size: 2.5rem;
+    text-align: center;
+    z-index: 10;
+  }
+`;
+
+const GameInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
   color: white;
+  font-size: 1.5rem;
+  z-index: 10;
 `;
 
 const GameBoard = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  max-width: 600px;
-  margin: 2rem auto;
   padding: 2rem;
-  background: #1E1E1E;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(147, 112, 219, 0.2);
-  border: 1px solid rgba(147, 112, 219, 0.3);
+  background: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(156, 39, 176, 0.2);
+  z-index: 10;
 `;
 
 const Hole = styled.div`
   width: 100px;
   height: 100px;
-  background: #2A2A2A;
   border-radius: 50%;
-  position: relative;
-  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(156, 39, 176, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  box-shadow: inset 0 10px 20px rgba(0, 0, 0, 0.5),
-              0 0 15px rgba(147, 112, 219, 0.2);
-  border: 2px solid rgba(147, 112, 219, 0.2);
   transition: all 0.3s ease;
 
   &:hover {
     transform: scale(1.05);
-    box-shadow: inset 0 10px 20px rgba(0, 0, 0, 0.5),
-                0 0 20px rgba(147, 112, 219, 0.4);
+    border-color: rgba(156, 39, 176, 0.5);
   }
 `;
 
 const Character = styled.div`
-  width: 90px;
-  height: 90px;
-  background: #673AB7;
+  width: 80%;
+  height: 80%;
   border-radius: 50%;
-  position: absolute;
-  top: ${props => props.isVisible ? '10%' : '100%'};
-  left: 5%;
-  transition: top 0.3s;
-  cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-
-  &:hover {
-    background: #7E57C2;
-  }
-`;
-
-const GameInfo = styled.div`
-  display: flex;
-  justify-content: space-around;
-  width: 100%;
-  max-width: 600px;
-  margin: 1rem 0;
-  padding: 1.5rem;
-  background: #1E1E1E;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(147, 112, 219, 0.2);
-  border: 1px solid rgba(147, 112, 219, 0.3);
-  color: white;
-  font-size: 1.2rem;
-
-  div {
-    display: flex;
-    align-items: center;
-    font-weight: bold;
-    color: #B39DDB;
-  }
+  background: ${props => props.isVisible ? 'linear-gradient(45deg, #9C27B0 30%, #E040FB 90%)' : 'transparent'};
+  opacity: ${props => props.isVisible ? 1 : 0};
+  transition: all 0.2s ease;
+  box-shadow: ${props => props.isVisible ? '0 3px 20px rgba(156, 39, 176, 0.3)' : 'none'};
 `;
 
 const Button = styled.button`
   padding: 1rem 2rem;
   font-size: 1.2rem;
-  background: #673AB7;
+  background: linear-gradient(45deg, #9C27B0 30%, #E040FB 90%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 50px;
   cursor: pointer;
   transition: all 0.3s ease;
-  border: 1px solid rgba(147, 112, 219, 0.3);
+  box-shadow: 0 3px 20px rgba(156, 39, 176, 0.3);
 
   &:hover {
-    background: #7E57C2;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(147, 112, 219, 0.3);
-  }
-
-  &:disabled {
-    background: #4A4A4A;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+    box-shadow: 0 5px 25px rgba(156, 39, 176, 0.5);
   }
 `;
+
+function ElegantShape({
+  className,
+  delay = 0,
+  width = 400,
+  height = 100,
+  rotate = 0,
+  gradient = "from-white/[0.08]",
+}) {
+  return (
+    <motion.div
+      initial={{
+        opacity: 0,
+        y: -150,
+        rotate: rotate - 15,
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        rotate: rotate,
+      }}
+      transition={{
+        duration: 2.4,
+        delay,
+        ease: [0.23, 0.86, 0.39, 0.96],
+        opacity: { duration: 1.2 },
+      }}
+      className={`absolute ${className}`}
+    >
+      <motion.div
+        animate={{
+          y: [0, 15, 0],
+        }}
+        transition={{
+          duration: 12,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
+        style={{
+          width,
+          height,
+        }}
+        className="relative"
+      >
+        <div
+          className={`absolute inset-0 rounded-full bg-gradient-to-r to-transparent ${gradient} backdrop-blur-[2px] border-2 border-white/[0.15] shadow-[0_8px_32px_0_rgba(255,255,255,0.1)] after:absolute after:inset-0 after:rounded-full after:bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]`}
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
 
 const WhackAMole = () => {
   const navigate = useNavigate();
@@ -118,7 +155,6 @@ const WhackAMole = () => {
   const [currentAttemptStarted, setCurrentAttemptStarted] = useState(false);
   const [gameCompleted, setGameCompleted] = useState(false);
   const timeoutRef = useRef(null);
-  const MAX_ATTEMPTS = 3;
 
   // Cleanup function
   useEffect(() => {
@@ -221,6 +257,46 @@ const WhackAMole = () => {
 
   return (
     <GameContainer>
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.05] via-transparent to-rose-500/[0.05] blur-3xl" />
+
+      <div className="absolute inset-0 overflow-hidden">
+        <ElegantShape
+          delay={0.3}
+          width={600}
+          height={140}
+          rotate={12}
+          gradient="from-purple-500/[0.15]"
+          className="left-[-10%] md:left-[-5%] top-[15%] md:top-[20%]"
+        />
+
+        <ElegantShape
+          delay={0.5}
+          width={500}
+          height={120}
+          rotate={-15}
+          gradient="from-rose-500/[0.15]"
+          className="right-[-5%] md:right-[0%] top-[70%] md:top-[75%]"
+        />
+
+        <ElegantShape
+          delay={0.4}
+          width={300}
+          height={80}
+          rotate={-8}
+          gradient="from-violet-500/[0.15]"
+          className="left-[5%] md:left-[10%] bottom-[5%] md:bottom-[10%]"
+        />
+
+        <ElegantShape
+          delay={0.6}
+          width={200}
+          height={60}
+          rotate={20}
+          gradient="from-amber-500/[0.15]"
+          className="right-[15%] md:right-[20%] top-[10%] md:top-[15%]"
+        />
+      </div>
+
       <h1>Whack-A-Mole Response Time Test</h1>
       <GameInfo>
         <div>Attempts: {attempts}/{MAX_ATTEMPTS}</div>
@@ -235,7 +311,9 @@ const WhackAMole = () => {
           </Hole>
         ))}
       </GameBoard>
-      <p>Click on the character as soon as it appears!</p>
+      <p style={{ color: 'white', marginTop: '2rem', zIndex: 10 }}>Click on the character as soon as it appears!</p>
+
+      <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-[#030303]/80 pointer-events-none" />
     </GameContainer>
   );
 };

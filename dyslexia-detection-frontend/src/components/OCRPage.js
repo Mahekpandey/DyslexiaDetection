@@ -12,13 +12,15 @@ import {
   Tooltip,
   Snackbar,
   LinearProgress,
+  Zoom,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { styled, keyframes } from '@mui/material/styles';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 import ImageIcon from '@mui/icons-material/Image';
 import CloseIcon from '@mui/icons-material/Close';
+import { motion } from 'framer-motion';
 import { compressImage } from '../utils/imageCompression';
 import config from '../config';
 
@@ -26,24 +28,50 @@ import config from '../config';
 const TextDisplay = lazy(() => import('./TextDisplay'));
 const AudioControls = lazy(() => import('./AudioControls'));
 
+const float = keyframes`
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+`;
+
+const bounce = keyframes`
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-20px); }
+  60% { transform: translateY(-10px); }
+`;
+
 // Styled components
 const StyledContainer = styled(Container)(({ theme }) => ({
-  paddingTop: theme.spacing(4),
-  paddingBottom: theme.spacing(4),
+  position: 'relative',
+  zIndex: 10,
+  paddingTop: '150px',
+  '& .MuiTypography-h3': {
+    marginBottom: theme.spacing(4),
+    textAlign: 'center',
+    animation: `${float} 3s ease-in-out infinite`,
+  },
 }));
 
 const DropzoneArea = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(6),
+  padding: theme.spacing(4),
+  maxWidth: '600px',
+  margin: '0 auto',
   textAlign: 'center',
   cursor: 'pointer',
-  border: `3px dashed ${theme.palette.primary.main}`,
-  borderRadius: theme.shape.borderRadius * 2,
+  border: `2px dashed ${theme.palette.primary.main}`,
+  borderRadius: '20px',
   backgroundColor: 'rgba(156, 39, 176, 0.1)',
   transition: 'all 0.3s ease-in-out',
   '&:hover': {
     borderColor: theme.palette.secondary.main,
     backgroundColor: 'rgba(156, 39, 176, 0.2)',
     transform: 'scale(1.02)',
+  },
+  '& .MuiSvgIcon-root': {
+    fontSize: 48,
+    marginBottom: theme.spacing(1),
+    color: theme.palette.primary.main,
+    animation: `${bounce} 2s infinite`,
   },
 }));
 
@@ -65,6 +93,57 @@ const SPEECH_CACHE = new Map();
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
+
+function ElegantShape({
+  className,
+  delay = 0,
+  width = 400,
+  height = 100,
+  rotate = 0,
+  gradient = "from-white/[0.08]",
+}) {
+  return (
+    <motion.div
+      initial={{
+        opacity: 0,
+        y: -150,
+        rotate: rotate - 15,
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        rotate: rotate,
+      }}
+      transition={{
+        duration: 2.4,
+        delay,
+        ease: [0.23, 0.86, 0.39, 0.96],
+        opacity: { duration: 1.2 },
+      }}
+      className={`absolute ${className}`}
+    >
+      <motion.div
+        animate={{
+          y: [0, 15, 0],
+        }}
+        transition={{
+          duration: 12,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
+        style={{
+          width,
+          height,
+        }}
+        className="relative"
+      >
+        <div
+          className={`absolute inset-0 rounded-full bg-gradient-to-r to-transparent ${gradient} backdrop-blur-[2px] border-2 border-white/[0.15] shadow-[0_8px_32px_0_rgba(255,255,255,0.1)] after:absolute after:inset-0 after:rounded-full after:bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]`}
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
 
 function OCRPage() {
   const [preview, setPreview] = useState(null);
@@ -425,109 +504,212 @@ function OCRPage() {
   });
 
   return (
-    <StyledContainer maxWidth="md">
-      <Typography variant="h4" gutterBottom align="center" sx={{ color: '#fff' }}>
-        OCR Text Reader
-      </Typography>
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#030303]">
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.05] via-transparent to-rose-500/[0.05] blur-3xl" />
 
-      <DropzoneArea {...getRootProps()}>
-        <input {...getInputProps()} />
-        <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-        <Typography variant="h6" sx={{ color: '#fff' }}>
-          {isDragActive
-            ? "Drop the image here!"
-            : "Drag & drop an image, or click to select"}
+      <div className="absolute inset-0 overflow-hidden">
+        <ElegantShape
+          delay={0.3}
+          width={600}
+          height={140}
+          rotate={12}
+          gradient="from-purple-500/[0.15]"
+          className="left-[-10%] md:left-[-5%] top-[15%] md:top-[20%]"
+        />
+
+        <ElegantShape
+          delay={0.5}
+          width={500}
+          height={120}
+          rotate={-15}
+          gradient="from-rose-500/[0.15]"
+          className="right-[-5%] md:right-[0%] top-[70%] md:top-[75%]"
+        />
+
+        <ElegantShape
+          delay={0.4}
+          width={300}
+          height={80}
+          rotate={-8}
+          gradient="from-violet-500/[0.15]"
+          className="left-[5%] md:left-[10%] bottom-[5%] md:bottom-[10%]"
+        />
+
+        <ElegantShape
+          delay={0.6}
+          width={200}
+          height={60}
+          rotate={20}
+          gradient="from-amber-500/[0.15]"
+          className="right-[15%] md:right-[20%] top-[10%] md:top-[15%]"
+        />
+
+        <ElegantShape
+          delay={0.7}
+          width={150}
+          height={40}
+          rotate={-25}
+          gradient="from-cyan-500/[0.15]"
+          className="left-[20%] md:left-[25%] top-[5%] md:top-[10%]"
+        />
+      </div>
+
+      <StyledContainer maxWidth="md">
+        <Typography variant="h3" component="h1" sx={{ color: '#fff', mb: 3 }}>
+          OCR Text Reader
         </Typography>
-        <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)', mt: 1 }}>
-          Supports JPG, JPEG, PNG
-        </Typography>
-      </DropzoneArea>
 
-      {(loading || compressing) && (
-        <Box sx={{ width: '100%', mt: 2 }}>
-          <LinearProgress 
-            variant={compressing ? "indeterminate" : "determinate"} 
-            value={uploadProgress} 
-          />
-          <Typography variant="body2" sx={{ color: '#fff', mt: 1, textAlign: 'center' }}>
-            {compressing 
-              ? 'Compressing image...' 
-              : uploadProgress < 100 
-                ? `Uploading: ${uploadProgress}%` 
-                : 'Processing image...'}
-          </Typography>
-        </Box>
-      )}
-
-      {error && (
-        <Alert 
-          severity="error" 
-          sx={{ mt: 2 }}
-          action={
-            <IconButton
-              aria-label="close"
-              color="inherit"
-              size="small"
-              onClick={() => setError(null)}
-            >
-              <CloseIcon fontSize="inherit" />
-            </IconButton>
-          }
-        >
-          {error}
-        </Alert>
-      )}
-
-      {preview && (
-        <Box sx={{ mt: 3, textAlign: 'center' }}>
-          <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
-            Uploaded Image
-          </Typography>
-          <PreviewImage src={preview} alt="Preview" />
-        </Box>
-      )}
-
-      {extractedText && (
-        <Suspense fallback={<CircularProgress />}>
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ color: '#fff', fontFamily: 'OpenDyslexic, Arial, sans-serif' }}>
-              Extracted Text
-            </Typography>
-            <TextDisplay 
-              text={extractedText} 
-              currentWord={currentWord}
-              currentCharIndex={currentCharIndex}
-              wordBoundaries={wordBoundaries}
-              isPlaying={isPlaying}
-            />
-            <AudioControls 
-              text={extractedText} 
-              isPlaying={isPlaying} 
-              onToggle={toggleAudio}
-              playbackSpeed={playbackSpeed}
-              onSpeedChange={handleSpeedChange}
-              isCached={isCached}
-              isLoading={isGeneratingAudio}
-            />
+        <Zoom in={true} timeout={800}>
+          <Box sx={{ mb: 3 }}>
+            <DropzoneArea {...getRootProps()}>
+              <input {...getInputProps()} />
+              <CloudUploadIcon />
+              <Box sx={{ p: 2 }}>
+                {isDragActive ? (
+                  <Typography variant="h6" sx={{ fontSize: '1.1rem', color: '#fff' }}>
+                    Drop your image here! ✨
+                  </Typography>
+                ) : (
+                  <Typography variant="h6" sx={{ fontSize: '1.1rem', color: '#fff' }}>
+                    Drop your image here, or click to choose! 📸
+                  </Typography>
+                )}
+                <Typography variant="body2" sx={{ mt: 1, color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem' }}>
+                  We can read JPEG, JPG, and PNG - just like magic! 🪄
+                </Typography>
+              </Box>
+            </DropzoneArea>
           </Box>
-        </Suspense>
-      )}
+        </Zoom>
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
+        {(loading || compressing) && (
+          <Box sx={{ width: '100%', mt: 2 }}>
+            <LinearProgress 
+              variant={compressing ? "indeterminate" : "determinate"} 
+              value={uploadProgress}
+              sx={{
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: '#9C27B0',
+                },
+              }}
+            />
+            <Typography variant="body2" sx={{ color: '#fff', mt: 1, textAlign: 'center' }}>
+              {compressing 
+                ? 'Compressing image...' 
+                : uploadProgress < 100 
+                  ? `Uploading: ${uploadProgress}%` 
+                  : 'Processing image...'}
+            </Typography>
+          </Box>
+        )}
+
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mt: 2,
+              backgroundColor: 'rgba(211, 47, 47, 0.1)',
+              color: '#fff',
+              '& .MuiAlert-icon': {
+                color: '#ff5252',
+              },
+            }}
+            action={
+              <IconButton
+                aria-label="close"
+                color="inherit"
+                size="small"
+                onClick={() => setError(null)}
+              >
+                <CloseIcon fontSize="inherit" />
+              </IconButton>
+            }
+          >
+            {error}
+          </Alert>
+        )}
+
+        {preview && (
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Paper 
+              elevation={6} 
+              sx={{ 
+                p: 3, 
+                backgroundColor: 'rgba(18, 18, 18, 0.8)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
+                Your Image ✨
+              </Typography>
+              <img 
+                src={preview} 
+                alt="Preview" 
+                style={{ 
+                  maxWidth: '100%',
+                  maxHeight: '300px',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 32px rgba(156, 39, 176, 0.4)',
+                }} 
+              />
+            </Paper>
+          </Box>
+        )}
+
+        {extractedText && (
+          <Suspense fallback={<CircularProgress sx={{ color: '#9C27B0' }} />}>
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ color: '#fff', fontFamily: 'OpenDyslexic, Arial, sans-serif' }}>
+                Extracted Text
+              </Typography>
+              <TextDisplay 
+                text={extractedText} 
+                currentWord={currentWord}
+                currentCharIndex={currentCharIndex}
+                wordBoundaries={wordBoundaries}
+                isPlaying={isPlaying}
+              />
+              <AudioControls 
+                text={extractedText} 
+                isPlaying={isPlaying} 
+                onToggle={toggleAudio}
+                playbackSpeed={playbackSpeed}
+                onSpeedChange={handleSpeedChange}
+                isCached={isCached}
+                isLoading={isGeneratingAudio}
+              />
+            </Box>
+          </Suspense>
+        )}
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </StyledContainer>
+          <Alert 
+            onClose={handleCloseSnackbar} 
+            severity={snackbar.severity}
+            sx={{ 
+              width: '100%',
+              backgroundColor: 'rgba(18, 18, 18, 0.95)',
+              color: '#fff',
+              backdropFilter: 'blur(10px)',
+              '& .MuiAlert-icon': {
+                color: theme => theme.palette[snackbar.severity].main,
+              },
+            }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </StyledContainer>
+
+      <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-[#030303]/80 pointer-events-none" />
+    </div>
   );
 }
 

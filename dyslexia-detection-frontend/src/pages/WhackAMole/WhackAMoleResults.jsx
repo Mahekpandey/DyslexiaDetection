@@ -2,31 +2,46 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 const ResultsContainer = styled.div`
+  min-height: 100vh;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem;
-  min-height: 100vh;
-  background: #121212;
-  color: white;
+  padding-top: 150px;
+  position: relative;
+  overflow: hidden;
+  background: #030303;
+
+  h1 {
+    color: white;
+    margin-bottom: 2rem;
+    font-size: 2.5rem;
+    text-align: center;
+    z-index: 10;
+  }
 `;
 
 const ResultsCard = styled.div`
-  background: #1E1E1E;
   padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(147, 112, 219, 0.2);
-  max-width: 600px;
-  width: 100%;
-  margin: 2rem 0;
-  border: 1px solid rgba(147, 112, 219, 0.3);
+  width: 90%;
+  max-width: 800px;
+  background: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(156, 39, 176, 0.2);
+  color: white;
+  z-index: 10;
 `;
 
 const ResultsList = styled.div`
   margin: 2rem 0;
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 `;
 
 const ResultItem = styled.div`
@@ -34,69 +49,54 @@ const ResultItem = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  border-bottom: 1px solid rgba(147, 112, 219, 0.2);
-  font-size: 1.1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
   color: white;
-  
-  &:last-child {
-    border-bottom: none;
-  }
 
   .attempt-score {
     color: ${props => {
-      if (props.score >= 90) return '#B39DDB';
-      if (props.score >= 75) return '#9575CD';
-      if (props.score >= 60) return '#7E57C2';
-      return '#673AB7';
+      if (props.score >= 90) return '#E040FB';
+      if (props.score >= 75) return '#D500F9';
+      if (props.score >= 60) return '#AA00FF';
+      return '#9C27B0';
     }};
-    font-weight: bold;
+    margin-left: 1rem;
   }
 `;
 
 const ScoreDisplay = styled.div`
   text-align: center;
-  margin: 2rem 0;
-  padding: 1.5rem;
-  background: ${props => {
-    if (props.score >= 90) return 'rgba(147, 112, 219, 0.2)';
-    if (props.score >= 75) return 'rgba(147, 112, 219, 0.15)';
-    if (props.score >= 60) return 'rgba(147, 112, 219, 0.1)';
-    return 'rgba(147, 112, 219, 0.05)';
-  }};
-  border-radius: 12px;
-  border: 1px solid rgba(147, 112, 219, 0.3);
-  
+  margin-bottom: 2rem;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+
   h3 {
     color: white;
     margin-bottom: 1rem;
     font-size: 1.5rem;
   }
-  
+
   .score {
-    font-size: 3.5rem;
+    font-size: 4rem;
     font-weight: bold;
-    color: ${props => {
-      if (props.score >= 90) return '#B39DDB';
-      if (props.score >= 75) return '#9575CD';
-      if (props.score >= 60) return '#7E57C2';
-      return '#673AB7';
-    }};
-    margin: 1rem 0;
+    background: linear-gradient(45deg, #9C27B0 30%, #E040FB 90%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 `;
 
 const Analysis = styled.div`
   margin: 2rem 0;
   padding: 1.5rem;
-  background: ${props => {
-    if (props.score >= 90) return 'rgba(147, 112, 219, 0.2)';
-    if (props.score >= 75) return 'rgba(147, 112, 219, 0.15)';
-    if (props.score >= 60) return 'rgba(147, 112, 219, 0.1)';
-    return 'rgba(147, 112, 219, 0.05)';
-  }};
+  background: rgba(156, 39, 176, 0.1);
   border-radius: 12px;
   text-align: center;
-  border: 1px solid rgba(147, 112, 219, 0.3);
+  border: 1px solid rgba(156, 39, 176, 0.2);
   
   h3 {
     color: white;
@@ -109,10 +109,10 @@ const Analysis = styled.div`
     font-weight: bold;
     margin-bottom: 1rem;
     color: ${props => {
-      if (props.score >= 90) return '#B39DDB';
-      if (props.score >= 75) return '#9575CD';
-      if (props.score >= 60) return '#7E57C2';
-      return '#673AB7';
+      if (props.score >= 90) return '#E040FB';
+      if (props.score >= 75) return '#D500F9';
+      if (props.score >= 60) return '#AA00FF';
+      return '#9C27B0';
     }};
   }
   
@@ -126,10 +126,10 @@ const Analysis = styled.div`
     font-size: 1.3rem;
     font-weight: 500;
     color: ${props => {
-      if (props.score >= 90) return '#B39DDB';
-      if (props.score >= 75) return '#9575CD';
-      if (props.score >= 60) return '#7E57C2';
-      return '#673AB7';
+      if (props.score >= 90) return '#E040FB';
+      if (props.score >= 75) return '#D500F9';
+      if (props.score >= 60) return '#AA00FF';
+      return '#9C27B0';
     }};
   }
 `;
@@ -137,19 +137,17 @@ const Analysis = styled.div`
 const Button = styled.button`
   padding: 1rem 2rem;
   font-size: 1.2rem;
-  background: #673AB7;
+  background: linear-gradient(45deg, #9C27B0 30%, #E040FB 90%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 50px;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-top: 2rem;
-  border: 1px solid rgba(147, 112, 219, 0.3);
+  box-shadow: 0 3px 20px rgba(156, 39, 176, 0.3);
 
   &:hover {
-    background: #7E57C2;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(147, 112, 219, 0.3);
+    box-shadow: 0 5px 25px rgba(156, 39, 176, 0.5);
   }
 `;
 
@@ -162,8 +160,8 @@ const LoadingContainer = styled(ResultsContainer)`
 `;
 
 const LoadingSpinner = styled.div`
-  border: 4px solid #1E1E1E;
-  border-top: 4px solid #673AB7;
+  border: 4px solid rgba(156, 39, 176, 0.1);
+  border-top: 4px solid #9C27B0;
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -175,6 +173,57 @@ const LoadingSpinner = styled.div`
     100% { transform: rotate(360deg); }
   }
 `;
+
+function ElegantShape({
+  className,
+  delay = 0,
+  width = 400,
+  height = 100,
+  rotate = 0,
+  gradient = "from-white/[0.08]",
+}) {
+  return (
+    <motion.div
+      initial={{
+        opacity: 0,
+        y: -150,
+        rotate: rotate - 15,
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        rotate: rotate,
+      }}
+      transition={{
+        duration: 2.4,
+        delay,
+        ease: [0.23, 0.86, 0.39, 0.96],
+        opacity: { duration: 1.2 },
+      }}
+      className={`absolute ${className}`}
+    >
+      <motion.div
+        animate={{
+          y: [0, 15, 0],
+        }}
+        transition={{
+          duration: 12,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
+        style={{
+          width,
+          height,
+        }}
+        className="relative"
+      >
+        <div
+          className={`absolute inset-0 rounded-full bg-gradient-to-r to-transparent ${gradient} backdrop-blur-[2px] border-2 border-white/[0.15] shadow-[0_8px_32px_0_rgba(255,255,255,0.1)] after:absolute after:inset-0 after:rounded-full after:bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]`}
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
 
 const WhackAMoleResults = () => {
   const navigate = useNavigate();
@@ -219,9 +268,11 @@ const WhackAMoleResults = () => {
   if (loading) {
     return (
       <LoadingContainer>
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.05] via-transparent to-rose-500/[0.05] blur-3xl" />
         <h1>Loading Results...</h1>
         <LoadingSpinner />
-        <p>Processing your response times...</p>
+        <p style={{ color: 'white', zIndex: 10 }}>Processing your response times...</p>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-[#030303]/80 pointer-events-none" />
       </LoadingContainer>
     );
   }
@@ -229,11 +280,13 @@ const WhackAMoleResults = () => {
   if (error) {
     return (
       <ResultsContainer>
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.05] via-transparent to-rose-500/[0.05] blur-3xl" />
         <ResultsCard>
           <h2>Error</h2>
           <p>{error}</p>
           <Button onClick={handlePlayAgain}>Try Again</Button>
         </ResultsCard>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-[#030303]/80 pointer-events-none" />
       </ResultsContainer>
     );
   }
@@ -241,17 +294,59 @@ const WhackAMoleResults = () => {
   if (!results || !results.attempts || results.attempts.length === 0) {
     return (
       <ResultsContainer>
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.05] via-transparent to-rose-500/[0.05] blur-3xl" />
         <ResultsCard>
           <h2>No Results Available</h2>
           <p>Please complete the Whack-A-Mole test to see your results.</p>
           <Button onClick={handlePlayAgain}>Start Test</Button>
         </ResultsCard>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-[#030303]/80 pointer-events-none" />
       </ResultsContainer>
     );
   }
 
   return (
     <ResultsContainer>
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.05] via-transparent to-rose-500/[0.05] blur-3xl" />
+
+      <div className="absolute inset-0 overflow-hidden">
+        <ElegantShape
+          delay={0.3}
+          width={600}
+          height={140}
+          rotate={12}
+          gradient="from-purple-500/[0.15]"
+          className="left-[-10%] md:left-[-5%] top-[15%] md:top-[20%]"
+        />
+
+        <ElegantShape
+          delay={0.5}
+          width={500}
+          height={120}
+          rotate={-15}
+          gradient="from-rose-500/[0.15]"
+          className="right-[-5%] md:right-[0%] top-[70%] md:top-[75%]"
+        />
+
+        <ElegantShape
+          delay={0.4}
+          width={300}
+          height={80}
+          rotate={-8}
+          gradient="from-violet-500/[0.15]"
+          className="left-[5%] md:left-[10%] bottom-[5%] md:bottom-[10%]"
+        />
+
+        <ElegantShape
+          delay={0.6}
+          width={200}
+          height={60}
+          rotate={20}
+          gradient="from-amber-500/[0.15]"
+          className="right-[15%] md:right-[20%] top-[10%] md:top-[15%]"
+        />
+      </div>
+
       <h1>Whack-A-Mole Test Results</h1>
       <ResultsCard>
         {results && (
@@ -290,6 +385,8 @@ const WhackAMoleResults = () => {
           </>
         )}
       </ResultsCard>
+
+      <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-[#030303]/80 pointer-events-none" />
     </ResultsContainer>
   );
 };

@@ -1,18 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, Paper, CircularProgress, Alert, Fade, Slider } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  CircularProgress,
+  Alert,
+  Fade,
+  Slider,
+  Container,
+} from '@mui/material';
+import { styled, keyframes } from '@mui/material/styles';
 import MicIcon from '@mui/icons-material/Mic';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import SpeedIcon from '@mui/icons-material/Speed';
+import { motion } from 'framer-motion';
+
+const float = keyframes`
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+`;
+
+const bounce = keyframes`
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-20px); }
+  60% { transform: translateY(-10px); }
+`;
+
+const StyledContainer = styled(Container)(({ theme }) => ({
+  position: 'relative',
+  zIndex: 10,
+  paddingTop: '150px',
+  '& .MuiTypography-h3': {
+    marginBottom: theme.spacing(4),
+    textAlign: 'center',
+    animation: `${float} 3s ease-in-out infinite`,
+  },
+}));
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
+  maxWidth: '800px',
   margin: '0 auto',
-  maxWidth: 800,
-  backgroundColor: '#1a1a1a',
-  borderRadius: '16px',
-  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+  backgroundColor: 'rgba(26, 26, 26, 0.8)',
+  backdropFilter: 'blur(10px)',
+  borderRadius: '20px',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
   color: '#ffffff',
+  boxShadow: '0 8px 32px rgba(156, 39, 176, 0.2)',
 }));
 
 const RecordingIndicator = styled(Box)(({ theme }) => ({
@@ -20,43 +56,33 @@ const RecordingIndicator = styled(Box)(({ theme }) => ({
   flexDirection: 'column',
   alignItems: 'center',
   padding: theme.spacing(4),
-  backgroundColor: 'rgba(103, 58, 183, 0.95)',
-  borderRadius: '12px',
+  backgroundColor: 'rgba(103, 58, 183, 0.15)',
+  backdropFilter: 'blur(10px)',
+  borderRadius: '20px',
   marginTop: theme.spacing(3),
   color: '#fff',
-  backdropFilter: 'blur(8px)',
-  boxShadow: '0 4px 30px rgba(103, 58, 183, 0.3)',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
+  boxShadow: '0 8px 32px rgba(156, 39, 176, 0.2)',
   '& .MicIcon': {
     fontSize: 56,
     color: '#fff',
-    animation: 'pulse 1.5s infinite',
-  },
-  '@keyframes pulse': {
-    '0%': {
-      transform: 'scale(1)',
-      opacity: 1,
-    },
-    '50%': {
-      transform: 'scale(1.2)',
-      opacity: 0.7,
-    },
-    '100%': {
-      transform: 'scale(1)',
-      opacity: 1,
-    },
+    animation: `${bounce} 1.5s infinite`,
   },
 }));
 
 const PassagePaper = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(3),
+  padding: theme.spacing(4),
   marginBottom: theme.spacing(4),
-  backgroundColor: '#2a2a2a',
-  borderRadius: '12px',
-  border: '1px solid #673ab7',
+  backgroundColor: 'rgba(42, 42, 42, 0.8)',
+  backdropFilter: 'blur(10px)',
+  borderRadius: '20px',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
+  boxShadow: '0 8px 32px rgba(156, 39, 176, 0.2)',
   '& .MuiTypography-body1': {
     fontSize: '1.1rem',
     lineHeight: 1.8,
     color: '#ffffff',
+    letterSpacing: '0.02em',
   },
 }));
 
@@ -100,17 +126,17 @@ const ResultsPaper = styled(Paper)(({ theme }) => ({
 }));
 
 const StyledButton = styled(Button)(({ theme }) => ({
-  padding: '12px 24px',
-  borderRadius: '8px',
-  textTransform: 'none',
+  padding: '12px 32px',
+  borderRadius: '50px',
   fontSize: '1.1rem',
-  fontWeight: 500,
-  backgroundColor: '#673ab7',
-  color: '#ffffff',
-  boxShadow: 'none',
+  background: 'linear-gradient(45deg, #9C27B0 30%, #E040FB 90%)',
+  boxShadow: '0 3px 20px rgba(156, 39, 176, 0.3)',
+  color: 'white',
+  border: 'none',
+  transition: 'all 0.3s ease-in-out',
   '&:hover': {
-    backgroundColor: '#5e35b1',
-    boxShadow: '0 4px 12px rgba(103, 58, 183, 0.3)',
+    transform: 'translateY(-2px)',
+    boxShadow: '0 5px 25px rgba(156, 39, 176, 0.5)',
   },
 }));
 
@@ -136,6 +162,57 @@ const SpeedControl = styled(Box)(({ theme }) => ({
   borderRadius: '8px',
   width: '200px',
 }));
+
+function ElegantShape({
+  className,
+  delay = 0,
+  width = 400,
+  height = 100,
+  rotate = 0,
+  gradient = "from-white/[0.08]",
+}) {
+  return (
+    <motion.div
+      initial={{
+        opacity: 0,
+        y: -150,
+        rotate: rotate - 15,
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        rotate: rotate,
+      }}
+      transition={{
+        duration: 2.4,
+        delay,
+        ease: [0.23, 0.86, 0.39, 0.96],
+        opacity: { duration: 1.2 },
+      }}
+      className={`absolute ${className}`}
+    >
+      <motion.div
+        animate={{
+          y: [0, 15, 0],
+        }}
+        transition={{
+          duration: 12,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
+        style={{
+          width,
+          height,
+        }}
+        className="relative"
+      >
+        <div
+          className={`absolute inset-0 rounded-full bg-gradient-to-r to-transparent ${gradient} backdrop-blur-[2px] border-2 border-white/[0.15] shadow-[0_8px_32px_0_rgba(255,255,255,0.1)] after:absolute after:inset-0 after:rounded-full after:bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]`}
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
 
 const ReadingAssessment = () => {
   const [passage, setPassage] = useState('');
@@ -371,311 +448,326 @@ const ReadingAssessment = () => {
   };
 
   return (
-    <Box sx={{ 
-      p: 4, 
-      minHeight: '100vh',
-      backgroundColor: '#121212',
-    }}>
-      <Typography 
-        variant="h4" 
-        gutterBottom 
-        sx={{ 
-          mb: 4, 
-          fontWeight: 600,
-          color: '#ffffff',
-          textAlign: 'center'
-        }}
-      >
-        Reading Assessment
-      </Typography>
-      
-      {error && (
-        <Alert 
-          severity="error" 
-          sx={{ 
-            mb: 3,
-            borderRadius: '8px',
-            '& .MuiAlert-message': {
-              fontSize: '1rem'
-            }
-          }}
-        >
-          {error}
-        </Alert>
-      )}
-      
-      <StyledPaper elevation={0}>
-        {!passage ? (
-          <Box sx={{ textAlign: 'center' }}>
-            <StyledButton
-              variant="contained"
-              color="primary"
-              onClick={startAssessment}
-              disabled={loading}
-            >
-              {loading ? (
-                <CircularProgress size={24} color="inherit" sx={{ mr: 1 }} />
-              ) : 'Start Assessment'}
-            </StyledButton>
-          </Box>
-        ) : (
-          <>
-            <Typography 
-              variant="h6" 
-              gutterBottom 
-              sx={{ 
-                mb: 3,
-                color: '#ffffff',
-                fontWeight: 500
-              }}
-            >
-              Read the following passage:
-            </Typography>
-            <PassagePaper elevation={0}>
-              <Typography variant="body1">{passage}</Typography>
-            </PassagePaper>
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#030303]">
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.05] via-transparent to-rose-500/[0.05] blur-3xl" />
 
-            {!isRecording && !analysis && (
-              <Box sx={{ textAlign: 'center' }}>
-                <StyledButton
-                  variant="contained"
-                  color="primary"
-                  onClick={startRecording}
-                  disabled={loading}
-                  startIcon={<MicIcon />}
-                >
-                  Start Reading
-                </StyledButton>
-              </Box>
-            )}
+      <div className="absolute inset-0 overflow-hidden">
+        <ElegantShape
+          delay={0.3}
+          width={600}
+          height={140}
+          rotate={12}
+          gradient="from-purple-500/[0.15]"
+          className="left-[-10%] md:left-[-5%] top-[15%] md:top-[20%]"
+        />
 
-            {renderRecordingState()}
+        <ElegantShape
+          delay={0.5}
+          width={500}
+          height={120}
+          rotate={-15}
+          gradient="from-rose-500/[0.15]"
+          className="right-[-5%] md:right-[0%] top-[70%] md:top-[75%]"
+        />
 
-            {analysis && (
-              <Box sx={{ mt: 4 }}>
-                <Typography 
-                  variant="h6" 
-                  gutterBottom 
-                  sx={{ 
-                    mb: 3,
-                    color: '#ffffff',
-                    fontWeight: 600,
-                    textAlign: 'center'
-                  }}
-                >
-                  Your Reading Results
-                </Typography>
-                <ResultsPaper elevation={0}>
-                  <Box className="result-item">
-                    <Typography className="result-label">Accuracy</Typography>
-                    <Typography 
-                      className={`result-value ${
-                        analysis.accuracy >= 90 ? 'result-value-good' :
-                        analysis.accuracy >= 70 ? 'result-value-warning' :
-                        'result-value-poor'
-                      }`}
-                    >
-                      {analysis.accuracy}%
-                    </Typography>
-                  </Box>
-                  
-                  <Box className="result-item">
-                    <Typography className="result-label">Reading Speed</Typography>
-                    <Typography 
-                      className={`result-value ${
-                        analysis.words_per_minute >= 100 ? 'result-value-good' :
-                        analysis.words_per_minute >= 60 ? 'result-value-warning' :
-                        'result-value-poor'
-                      }`}
-                    >
-                      {analysis.words_per_minute} words per minute
-                    </Typography>
-                  </Box>
-                  
-                  <Box className="result-item">
-                    <Typography className="result-label">Assessment</Typography>
-                    <Typography 
-                      className={`result-value ${
-                        !analysis.dyslexia_prediction ? 'result-value-good' : 'result-value-warning'
-                      }`}
-                    >
-                      {analysis.dyslexia_prediction ? 'May need support' : 'Reading well'}
-                    </Typography>
-                  </Box>
-                  
-                  {analysis.errors && analysis.errors.length > 0 && (
-                    <Box sx={{ mt: 4 }}>
-                      <Typography 
-                        variant="h6" 
-                        gutterBottom
-                        sx={{ 
-                          color: '#ffffff',
-                          fontWeight: 500,
-                          mb: 3,
-                          textAlign: 'center'
-                        }}
-                      >
-                        Words to Practice
-                      </Typography>
-                      
-                      <Box sx={{ mb: 3, p: 2, backgroundColor: '#2a2a2a', borderRadius: '12px' }}>
-                        <Typography 
-                          variant="subtitle1" 
-                          sx={{ 
-                            color: '#ffffff',
-                            fontWeight: 500,
-                            mb: 1
-                          }}
-                        >
-                          Original Text:
-                        </Typography>
-                        <Typography variant="body1" sx={{ color: '#ffffff' }}>
-                          {analysis.original_text}
-                        </Typography>
-                        
-                        <Typography 
-                          variant="subtitle1" 
-                          sx={{ 
-                            color: '#ffffff',
-                            fontWeight: 500,
-                            mt: 2,
-                            mb: 1
-                          }}
-                        >
-                          Your Reading:
-                        </Typography>
-                        <Typography variant="body1" sx={{ color: '#ffffff' }}>
-                          {analysis.recognized_text || 'No text recognized'}
-                        </Typography>
-                      </Box>
+        <ElegantShape
+          delay={0.4}
+          width={300}
+          height={80}
+          rotate={-8}
+          gradient="from-violet-500/[0.15]"
+          className="left-[5%] md:left-[10%] bottom-[5%] md:bottom-[10%]"
+        />
 
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {analysis.errors.map((error, index) => (
-                          <Box 
-                            key={index}
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              p: 2,
-                              borderRadius: '12px',
-                              backgroundColor: 'rgba(231, 76, 60, 0.05)',
-                              border: '1px solid rgba(231, 76, 60, 0.1)',
-                              transition: 'transform 0.2s',
-                              '&:hover': {
-                                transform: 'translateX(8px)'
-                              }
-                            }}
-                          >
-                            <Box sx={{ 
-                              flex: 1, 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center',
-                              flexWrap: 'wrap',
-                              gap: 1
-                            }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography
-                                  sx={{
-                                    px: 2,
-                                    py: 1,
-                                    borderRadius: '8px',
-                                    backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                                    color: '#27ae60',
-                                    border: '1px solid rgba(46, 204, 113, 0.2)',
-                                    fontWeight: 500,
-                                    minWidth: '80px',
-                                    textAlign: 'center'
-                                  }}
-                                >
-                                  {error.expected}
-                                </Typography>
-                                <PlayButton
-                                  onClick={() => speakWord(error.expected)}
-                                  disabled={speaking}
-                                >
-                                  <VolumeUpIcon />
-                                </PlayButton>
-                              </Box>
-                              
-                              <Typography sx={{ 
-                                color: '#e74c3c', 
-                                mx: 2, 
-                                fontSize: '1.2rem',
-                                display: 'flex',
-                                alignItems: 'center'
-                              }}>
-                                →
-                              </Typography>
-                              
-                              <Typography
-                                sx={{
-                                  px: 2,
-                                  py: 1,
-                                  borderRadius: '8px',
-                                  backgroundColor: error.spoken === '(missing)' ? 'rgba(231, 76, 60, 0.05)' : 'rgba(231, 76, 60, 0.1)',
-                                  color: '#e74c3c',
-                                  border: '1px solid rgba(231, 76, 60, 0.2)',
-                                  fontWeight: 500,
-                                  minWidth: '80px',
-                                  textAlign: 'center',
-                                  fontStyle: error.spoken === '(missing)' ? 'italic' : 'normal'
-                                }}
-                              >
-                                {error.spoken === '(missing)' ? 'missed' : error.spoken}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        ))}
-                      </Box>
-                    </Box>
-                  )}
-                </ResultsPaper>
-                
-                <Box sx={{ textAlign: 'center', mt: 4 }}>
+        <ElegantShape
+          delay={0.6}
+          width={200}
+          height={60}
+          rotate={20}
+          gradient="from-amber-500/[0.15]"
+          className="right-[15%] md:right-[20%] top-[10%] md:top-[15%]"
+        />
+      </div>
+
+      <StyledContainer maxWidth="md">
+        <Typography variant="h3" component="h1" sx={{ color: '#fff', mb: 3 }}>
+          Reading Assessment
+        </Typography>
+
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mb: 3,
+              borderRadius: '12px',
+              backgroundColor: 'rgba(211, 47, 47, 0.1)',
+              color: '#fff',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              '& .MuiAlert-icon': {
+                color: '#ff5252',
+              },
+            }}
+          >
+            {error}
+          </Alert>
+        )}
+
+        <StyledPaper elevation={0}>
+          {!passage ? (
+            <Box sx={{ textAlign: 'center' }}>
+              <StyledButton
+                variant="contained"
+                onClick={startAssessment}
+                disabled={loading}
+              >
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" sx={{ mr: 1 }} />
+                ) : 'Start Assessment'}
+              </StyledButton>
+            </Box>
+          ) : (
+            <>
+              <Typography 
+                variant="h6" 
+                gutterBottom 
+                sx={{ 
+                  mb: 3,
+                  color: '#ffffff',
+                  fontWeight: 500,
+                  textAlign: 'center',
+                }}
+              >
+                Read the following passage:
+              </Typography>
+
+              <PassagePaper elevation={0}>
+                <Typography variant="body1">{passage}</Typography>
+              </PassagePaper>
+
+              {!isRecording && !analysis && (
+                <Box sx={{ textAlign: 'center' }}>
                   <StyledButton
                     variant="contained"
-                    color="primary"
-                    onClick={startAssessment}
-                    sx={{
-                      backgroundColor: '#4CAF50',
-                      '&:hover': {
-                        backgroundColor: '#388E3C',
-                        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.2)',
-                      }
-                    }}
+                    onClick={startRecording}
+                    disabled={loading}
+                    startIcon={<MicIcon />}
                   >
-                    Try Another Passage
+                    Start Reading
                   </StyledButton>
                 </Box>
-              </Box>
-            )}
-          </>
-        )}
-      </StyledPaper>
+              )}
 
-      {/* Add speed control slider */}
-      <SpeedControl sx={{ mt: 3, mx: 'auto' }}>
-        <SpeedIcon sx={{ color: 'rgba(0, 0, 0, 0.54)' }} />
-        <Slider
-          value={speechRate}
-          onChange={handleSpeedChange}
-          min={0.5}
-          max={2}
-          step={0.1}
-          valueLabelDisplay="auto"
-          valueLabelFormat={(value) => `${value}x`}
-          sx={{ 
-            color: '#673ab7',
-            '& .MuiSlider-thumb': {
-              '&:hover, &.Mui-focusVisible': {
-                boxShadow: '0 0 0 8px rgba(103, 58, 183, 0.16)',
-              },
-            },
-          }}
-        />
-      </SpeedControl>
-    </Box>
+              {renderRecordingState()}
+
+              {analysis && (
+                <Fade in={true} timeout={1000}>
+                  <Box sx={{ mt: 4 }}>
+                    <Typography 
+                      variant="h6" 
+                      gutterBottom 
+                      sx={{ 
+                        mb: 3,
+                        color: '#ffffff',
+                        fontWeight: 600,
+                        textAlign: 'center'
+                      }}
+                    >
+                      Your Reading Results
+                    </Typography>
+                    <ResultsPaper elevation={0}>
+                      <Box className="result-item">
+                        <Typography className="result-label">Accuracy</Typography>
+                        <Typography 
+                          className={`result-value ${
+                            analysis.accuracy >= 90 ? 'result-value-good' :
+                            analysis.accuracy >= 70 ? 'result-value-warning' :
+                            'result-value-poor'
+                          }`}
+                        >
+                          {analysis.accuracy}%
+                        </Typography>
+                      </Box>
+                      
+                      <Box className="result-item">
+                        <Typography className="result-label">Reading Speed</Typography>
+                        <Typography 
+                          className={`result-value ${
+                            analysis.words_per_minute >= 100 ? 'result-value-good' :
+                            analysis.words_per_minute >= 60 ? 'result-value-warning' :
+                            'result-value-poor'
+                          }`}
+                        >
+                          {analysis.words_per_minute} words per minute
+                        </Typography>
+                      </Box>
+                      
+                      <Box className="result-item">
+                        <Typography className="result-label">Assessment</Typography>
+                        <Typography 
+                          className={`result-value ${
+                            !analysis.dyslexia_prediction ? 'result-value-good' : 'result-value-warning'
+                          }`}
+                        >
+                          {analysis.dyslexia_prediction ? 'May need support' : 'Reading well'}
+                        </Typography>
+                      </Box>
+                      
+                      {analysis.errors && analysis.errors.length > 0 && (
+                        <Box sx={{ mt: 4 }}>
+                          <Typography 
+                            variant="h6" 
+                            gutterBottom
+                            sx={{ 
+                              color: '#ffffff',
+                              fontWeight: 500,
+                              mb: 3,
+                              textAlign: 'center'
+                            }}
+                          >
+                            Words to Practice
+                          </Typography>
+                          
+                          <Box sx={{ mb: 3, p: 2, backgroundColor: '#2a2a2a', borderRadius: '12px' }}>
+                            <Typography 
+                              variant="subtitle1" 
+                              sx={{ 
+                                color: '#ffffff',
+                                fontWeight: 500,
+                                mb: 1
+                              }}
+                            >
+                              Original Text:
+                            </Typography>
+                            <Typography variant="body1" sx={{ color: '#ffffff' }}>
+                              {analysis.original_text}
+                            </Typography>
+                            
+                            <Typography 
+                              variant="subtitle1" 
+                              sx={{ 
+                                color: '#ffffff',
+                                fontWeight: 500,
+                                mt: 2,
+                                mb: 1
+                              }}
+                            >
+                              Your Reading:
+                            </Typography>
+                            <Typography variant="body1" sx={{ color: '#ffffff' }}>
+                              {analysis.recognized_text || 'No text recognized'}
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {analysis.errors.map((error, index) => (
+                              <Box 
+                                key={index}
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  p: 2,
+                                  borderRadius: '12px',
+                                  backgroundColor: 'rgba(231, 76, 60, 0.05)',
+                                  border: '1px solid rgba(231, 76, 60, 0.1)',
+                                  transition: 'transform 0.2s',
+                                  '&:hover': {
+                                    transform: 'translateX(8px)'
+                                  }
+                                }}
+                              >
+                                <Box sx={{ 
+                                  flex: 1, 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: 1
+                                }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography
+                                      sx={{
+                                        px: 2,
+                                        py: 1,
+                                        borderRadius: '8px',
+                                        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                                        color: '#27ae60',
+                                        border: '1px solid rgba(46, 204, 113, 0.2)',
+                                        fontWeight: 500,
+                                        minWidth: '80px',
+                                        textAlign: 'center'
+                                      }}
+                                    >
+                                      {error.expected}
+                                    </Typography>
+                                    <PlayButton
+                                      onClick={() => speakWord(error.expected)}
+                                      disabled={speaking}
+                                    >
+                                      <VolumeUpIcon />
+                                    </PlayButton>
+                                  </Box>
+                                  
+                                  <Typography sx={{ 
+                                    color: '#e74c3c', 
+                                    mx: 2, 
+                                    fontSize: '1.2rem',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}>
+                                    →
+                                  </Typography>
+                                  
+                                  <Typography
+                                    sx={{
+                                      px: 2,
+                                      py: 1,
+                                      borderRadius: '8px',
+                                      backgroundColor: error.spoken === '(missing)' ? 'rgba(231, 76, 60, 0.05)' : 'rgba(231, 76, 60, 0.1)',
+                                      color: '#e74c3c',
+                                      border: '1px solid rgba(231, 76, 60, 0.2)',
+                                      fontWeight: 500,
+                                      minWidth: '80px',
+                                      textAlign: 'center',
+                                      fontStyle: error.spoken === '(missing)' ? 'italic' : 'normal'
+                                    }}
+                                  >
+                                    {error.spoken === '(missing)' ? 'missed' : error.spoken}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                    </ResultsPaper>
+                    
+                    <Box sx={{ textAlign: 'center', mt: 4 }}>
+                      <StyledButton
+                        variant="contained"
+                        color="primary"
+                        onClick={startAssessment}
+                        sx={{
+                          backgroundColor: '#4CAF50',
+                          '&:hover': {
+                            backgroundColor: '#388E3C',
+                            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.2)',
+                          }
+                        }}
+                      >
+                        Try Another Passage
+                      </StyledButton>
+                    </Box>
+                  </Box>
+                </Fade>
+              )}
+            </>
+          )}
+        </StyledPaper>
+      </StyledContainer>
+
+      <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-[#030303]/80 pointer-events-none" />
+    </div>
   );
 };
 

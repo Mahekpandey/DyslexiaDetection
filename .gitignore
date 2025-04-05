@@ -1,5 +1,14 @@
-# Ignore frontend directory
-dyslexia-detection-frontend/
+# Frontend
+dyslexia-detection-frontend/node_modules/
+dyslexia-detection-frontend/build/
+dyslexia-detection-frontend/.env
+dyslexia-detection-frontend/.env.local
+dyslexia-detection-frontend/.env.development.local
+dyslexia-detection-frontend/.env.test.local
+dyslexia-detection-frontend/.env.production.local
+dyslexia-detection-frontend/npm-debug.log*
+dyslexia-detection-frontend/yarn-debug.log*
+dyslexia-detection-frontend/yarn-error.log*
 
 # Python
 __pycache__/
